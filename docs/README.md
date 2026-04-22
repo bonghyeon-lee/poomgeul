@@ -13,8 +13,9 @@
 1. [architecture/system-overview.md](architecture/system-overview.md) — 구성 요소
 2. [architecture/data-model.md](architecture/data-model.md) — 엔티티 전체
 3. [specs/m0-mvp.md](specs/m0-mvp.md) — 지금 만들 기능
-4. [guides/dev-setup.md](guides/dev-setup.md) — 로컬 실행 (Pre-M0 placeholder)
-5. [architecture/decisions/](architecture/decisions/) — ADR: "왜 이렇게 설계했나"
+4. [guides/dev-setup.md](guides/dev-setup.md) — 로컬 실행
+5. [guides/testing.md](guides/testing.md) — TDD 레이어·DB 격리 전략
+6. [architecture/decisions/](architecture/decisions/) — ADR: "왜 이렇게 설계했나"
 
 ### ✍️ 번역 기여자 / 리드 메인테이너
 1. [architecture/workflow-proposal.md](architecture/workflow-proposal.md) — Proposal → 머지 흐름

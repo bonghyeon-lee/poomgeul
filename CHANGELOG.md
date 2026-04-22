@@ -8,6 +8,14 @@
 ## [Unreleased]
 
 ### Added
+- **TDD 기반 정비 (2026-04-23).** API 테스트 레이어 확립 + DB 통합 테스트 인프라.
+  - `apps/api`에 Jest preset(ESM) 기반 unit/integration/e2e 3계층. `test:unit`·`test:integration`·`test:e2e`·`test:watch` 스크립트 추가.
+  - `@nestjs/testing`로 `TestingModule` + `supertest` e2e 경로. HealthController 유닛 spec + `GET /healthz` e2e 샘플.
+  - `apps/api/test/db/test-db.ts`: `withRollback`(공유 `poomgeul_test` DB + Drizzle 트랜잭션 롤백)과 `startIsolatedContainer`(Testcontainers `pgvector/pg16` per-suite) 두 전략.
+  - `@poomgeul/db`에 `close()` 메서드 추가(커넥션 정리) + `drizzle-orm` query 헬퍼(`and/eq/or/...`) re-export로 duplicate-instance 타입 충돌 방지.
+  - `apps/api` 프로덕션 tsconfig는 `src/**/*.spec.ts` 제외, 테스트 전용 `tsconfig.test.json`으로 typecheck.
+  - CI: `quality` 잡에 `test:unit` 포함, `migrate-and-smoke` 잡이 `poomgeul_test` DB를 생성·migrate 후 `test:integration` + `test:e2e`를 먼저 돌리고 smoke curl로 마무리.
+  - 규약 문서 [docs/guides/testing.md](docs/guides/testing.md) 추가.
 - 초기 저장소 docs 스켈레톤 (`README`, `CONTRIBUTING`, `CODE_OF_CONDUCT`, `docs/` 트리, `prompts/`, `.github/`).
 - 기획서 v0.4 기반 M0/M1/M2 기능 명세, 아키텍처 문서, ADR 4건 초안.
 - 한국어 번역 스타일 가이드(§9.6 전문 이관).

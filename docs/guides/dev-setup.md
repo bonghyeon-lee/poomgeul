@@ -138,9 +138,12 @@ pnpm test          # 각 워크스페이스 jest (--passWithNoTests) / web은 pl
 
 ## 테스트
 
-- **단위 테스트 (Jest):** 백엔드 서비스 레이어(Proposal 상태 머신, optimistic locking)에 우선.
-- **통합 테스트:** 실제 PostgreSQL을 Docker로 띄워 사용. DB는 mock하지 않음 — Proposal 머지 플로우가 트랜잭션 본질이기 때문.
-- **e2e (Supertest):** M0 수락 흐름(로그인 → import → 초벌 → 제안 → 머지 → 공개 URL). 현재는 템플릿만.
+세부 규약과 전략은 [testing.md](testing.md) 참조. 요약:
+
+- **Unit** (`src/**/*.spec.ts`) — 외부 의존 없음, `pnpm --filter @poomgeul/api run test:unit`로 watch TDD.
+- **Integration** (`test/integration/**/*.int-spec.ts`) — 실제 Postgres `poomgeul_test` DB 사용. `withRollback` 헬퍼로 각 it이 트랜잭션을 롤백. 격리가 필요한 suite는 Testcontainers(`startIsolatedContainer`).
+- **E2E** (`test/**/*.e2e-spec.ts`) — NestApplication + supertest.
+- 공통 명령: `pnpm --filter @poomgeul/api run test:watch` (TDD 루프).
 
 ## 일반 트러블슈팅
 
@@ -155,13 +158,15 @@ pnpm test          # 각 워크스페이스 jest (--passWithNoTests) / web은 pl
 ### `quality` 잡
 - 체크아웃 → pnpm + Node 24 (`.nvmrc` 자동 인식) → `pnpm install --frozen-lockfile`
 - `pnpm -r run typecheck` — 4개 워크스페이스 tsc
-- `pnpm lint` — 루트 ESLint flat config(`eslint.config.mjs`), typescript-eslint recommended + Prettier 호환
+- `pnpm lint` — 루트 ESLint flat config(`eslint.config.mjs`), typescript-eslint + Next 플러그인 + Prettier 호환
 - `pnpm format:check` — Prettier (마크다운은 현재 ignore 목록)
-- `pnpm -r --if-present run test` — apps/api는 jest(`--passWithNoTests`), web은 placeholder
+- `pnpm --filter @poomgeul/api run test:unit` — 빠른 단위 테스트 (DB 없음)
 
 ### `migrate-and-smoke` 잡
 - Postgres `pgvector/pgvector:pg16` 서비스 컨테이너 (5432)
-- `pnpm --filter @poomgeul/db migrate` — 15개 테이블 실제 생성
+- app DB(`poomgeul`)와 test DB(`poomgeul_test`)를 모두 migrate
+- `pnpm --filter @poomgeul/api run test:integration` — 실제 DB에 대해 withRollback 경로 검증
+- `pnpm --filter @poomgeul/api run test:e2e` — NestApplication + supertest
 - API 백그라운드 기동 → 30초 내 `/healthz` 200 대기
 - `/api/docs-json` 200 검증
 
@@ -204,6 +209,7 @@ curl -fsS http://localhost:3000/api/docs-json > /dev/null
 - [ADR-0001 백엔드 프레임워크](../architecture/decisions/0001-backend-framework.md)
 - [ADR-0002 LLM 추상화](../architecture/decisions/0002-llm-provider-abstraction.md)
 - [ADR-0003 optimistic locking](../architecture/decisions/0003-optimistic-locking.md)
+- [testing.md](testing.md) — TDD 레이어·DB 격리 전략
 - [data-model.md](../architecture/data-model.md)
 - [llm-integration.md](llm-integration.md)
 - [source-import.md](source-import.md)

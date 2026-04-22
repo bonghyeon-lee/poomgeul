@@ -37,8 +37,8 @@ jobs:
       - name: Format check
         run: pnpm format:check
 
-      - name: Test
-        run: pnpm -r --if-present run test
+      - name: Unit tests (fast, no DB)
+        run: pnpm --filter @poomgeul/api run test:unit
 
   migrate-and-smoke:
     name: db migrate · api smoke
@@ -61,6 +61,7 @@ jobs:
 
     env:
       DATABASE_URL: postgres://poomgeul:poomgeul@localhost:5432/poomgeul
+      TEST_DATABASE_URL: postgres://poomgeul:poomgeul@localhost:5432/poomgeul_test
       PORT: "3000"
 
     steps:
@@ -78,10 +79,22 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Apply Drizzle migrations
+      - name: Apply Drizzle migrations (app DB)
         run: pnpm --filter @poomgeul/db migrate
 
-      - name: Boot API in background
+      - name: Create + migrate test DB (poomgeul_test)
+        run: |
+          PGPASSWORD=poomgeul psql -h localhost -U poomgeul -d postgres \
+            -c "CREATE DATABASE poomgeul_test;"
+          DATABASE_URL=$TEST_DATABASE_URL pnpm --filter @poomgeul/db migrate
+
+      - name: Integration tests (withRollback · test DB)
+        run: pnpm --filter @poomgeul/api run test:integration
+
+      - name: E2E tests (NestApplication + supertest)
+        run: pnpm --filter @poomgeul/api run test:e2e
+
+      - name: Boot API in background (for smoke curls)
         run: |
           pnpm --filter @poomgeul/api dev &
           echo "API_PID=$!" >> $GITHUB_ENV
