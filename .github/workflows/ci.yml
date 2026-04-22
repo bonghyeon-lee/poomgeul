@@ -16,9 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # pnpm version is read from package.json#packageManager.
+      # Specifying `with.version` here would conflict (ERR_PNPM_BAD_PM_VERSION).
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v6
         with:
@@ -66,9 +66,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # pnpm version is read from package.json#packageManager.
+      # Specifying `with.version` here would conflict (ERR_PNPM_BAD_PM_VERSION).
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v6
         with:
