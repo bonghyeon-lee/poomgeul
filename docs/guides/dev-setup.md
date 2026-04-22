@@ -140,10 +140,14 @@ pnpm test          # 각 워크스페이스 jest (--passWithNoTests) / web은 pl
 
 세부 규약과 전략은 [testing.md](testing.md) 참조. 요약:
 
+**API (`apps/api`, Jest)**
 - **Unit** (`src/**/*.spec.ts`) — 외부 의존 없음, `pnpm --filter @poomgeul/api run test:unit`로 watch TDD.
 - **Integration** (`test/integration/**/*.int-spec.ts`) — 실제 Postgres `poomgeul_test` DB 사용. `withRollback` 헬퍼로 각 it이 트랜잭션을 롤백. 격리가 필요한 suite는 Testcontainers(`startIsolatedContainer`).
 - **E2E** (`test/**/*.e2e-spec.ts`) — NestApplication + supertest.
-- 공통 명령: `pnpm --filter @poomgeul/api run test:watch` (TDD 루프).
+
+**Web (`apps/web`)**
+- **Unit/Component** (`src/**/*.test.{ts,tsx}`) — Vitest + RTL + jsdom. `pnpm --filter @poomgeul/web run test:watch`로 TDD 루프.
+- **E2E 브라우저** (`e2e/**/*.spec.ts`) — Playwright (chromium). `pnpm --filter @poomgeul/web run test:e2e`가 Next dev 서버를 자동 기동·종료.
 
 ## 일반 트러블슈팅
 
@@ -169,6 +173,12 @@ pnpm test          # 각 워크스페이스 jest (--passWithNoTests) / web은 pl
 - `pnpm --filter @poomgeul/api run test:e2e` — NestApplication + supertest
 - API 백그라운드 기동 → 30초 내 `/healthz` 200 대기
 - `/api/docs-json` 200 검증
+
+### `web-e2e` 잡
+- Playwright (chromium) 기반 브라우저 E2E
+- `actions/cache`로 `~/.cache/ms-playwright` 브라우저 바이너리 캐시 (다운로드 ~100MB 절약)
+- `pnpm --filter @poomgeul/web run test:e2e` — `playwright.config.ts`의 `webServer`가 `pnpm dev`를 자동 기동·종료
+- 실패 시 `apps/web/playwright-report/`를 artifact로 업로드 (14일 보관)
 
 ### 로컬에서 CI 재현
 
@@ -200,9 +210,9 @@ curl -fsS http://localhost:3000/api/docs-json > /dev/null
 - **에디터 자동 포매팅**: `.editorconfig`가 LF·UTF-8·2-space를 선언. VS Code/Cursor는 "Format on Save" + Prettier 확장 권장.
 
 ### 알려진 TODO
-- **Web 테스트 프레임워크 미선택.** Playwright / RTL 중 M0 e2e 시나리오에 맞춰 도입.
-- **Branch protection.** 이 두 잡을 main 브랜치 required check으로 지정하는 것은 저장소가 공개 전환될 때.
+- **Branch protection.** 이 세 잡을 main 브랜치 required check으로 지정하는 것은 저장소가 공개 전환될 때.
 - **마크다운 포매팅.** docs 파이프라인(Vale·markdownlint 등) 도입 시점에 Prettier 포함 재검토.
+- **Playwright 멀티 브라우저.** 현재 chromium만. 실제 크로스 브라우저 이슈가 보고되면 WebKit/Firefox 추가.
 
 ## 자주 찾게 될 참조
 

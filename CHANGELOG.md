@@ -8,6 +8,13 @@
 ## [Unreleased]
 
 ### Added
+- **Web 테스트 기반 (2026-04-23).** `apps/web`에 Vitest + React Testing Library + jsdom, Playwright(chromium) 도입.
+  - Vitest: `src/**/*.test.{ts,tsx}` 컴포넌트/유닛 레이어. `vitest.config.ts` + `src/test/setup.ts`(`@testing-library/jest-dom/vitest` 로드). `test` / `test:watch` / `test:coverage` 스크립트.
+  - Playwright: `e2e/**/*.spec.ts` 브라우저 레이어. `playwright.config.ts`의 `webServer`가 `pnpm dev`를 자동 기동. `test:e2e` / `test:e2e:ui` 스크립트.
+  - tsconfig에 `vitest/globals` 타입, `e2e/**/*.ts` include. ESLint에 `.test.tsx`와 `apps/web/e2e/**` 테스트 규칙 완화 블록.
+  - CI: `quality` 잡에 web Vitest 추가, 새 `web-e2e` 잡(`actions/cache`로 `~/.cache/ms-playwright` 캐시, 실패 시 report artifact 업로드).
+  - `.gitignore`에 `playwright-report/`, `test-results/`, `.vitest-cache/`.
+  - 규약 [docs/guides/testing.md](docs/guides/testing.md)에 Web/Playwright 섹션 추가.
 - **TDD 기반 정비 (2026-04-23).** API 테스트 레이어 확립 + DB 통합 테스트 인프라.
   - `apps/api`에 Jest preset(ESM) 기반 unit/integration/e2e 3계층. `test:unit`·`test:integration`·`test:e2e`·`test:watch` 스크립트 추가.
   - `@nestjs/testing`로 `TestingModule` + `supertest` e2e 경로. HealthController 유닛 spec + `GET /healthz` e2e 샘플.

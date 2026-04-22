@@ -37,8 +37,11 @@ jobs:
       - name: Format check
         run: pnpm format:check
 
-      - name: Unit tests (fast, no DB)
+      - name: Unit tests — api (Jest, no DB)
         run: pnpm --filter @poomgeul/api run test:unit
+
+      - name: Unit tests — web (Vitest + RTL, jsdom)
+        run: pnpm --filter @poomgeul/web run test
 
   migrate-and-smoke:
     name: db migrate · api smoke
@@ -128,3 +131,53 @@ jobs:
           if [ -n "${API_PID:-}" ]; then
             kill "$API_PID" 2>/dev/null || true
           fi
+
+  web-e2e:
+    name: web e2e (Playwright · chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Cache Playwright browsers keyed on the version we install. Saves
+      # ~100MB download on subsequent runs.
+      - name: Resolve Playwright version
+        id: playwright-version
+        run: |
+          v=$(pnpm --filter @poomgeul/web exec playwright --version | awk '{print $2}')
+          echo "version=$v" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+      - name: Install Chromium (cache miss)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @poomgeul/web exec playwright install --with-deps chromium
+
+      - name: Install Chromium system deps (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @poomgeul/web exec playwright install-deps chromium
+
+      - name: Run Playwright tests
+        run: pnpm --filter @poomgeul/web run test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 14

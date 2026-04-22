@@ -19,6 +19,11 @@ build/
 coverage/
 .pnpm-store/
 
+# Test artifacts
+playwright-report/
+test-results/
+.vitest-cache/
+
 # Editor / OS
 .DS_Store
 .idea/

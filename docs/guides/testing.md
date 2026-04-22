@@ -15,11 +15,22 @@ poomgeul의 테스트 규약과 실행 방법. TDD(Red-Green-Refactor)를 실제
 
 ## 레이어와 네이밍
 
-| 레이어 | 위치 | 파일명 규약 | 러너 |
+### API (`apps/api`)
+
+| 레이어 | 위치 | 파일명 | 러너 |
 |---|---|---|---|
-| **Unit** | `apps/api/src/**` | `*.spec.ts` | Jest |
-| **Integration** | `apps/api/test/integration/**` | `*.int-spec.ts` | Jest + 실제 Postgres |
-| **E2E** | `apps/api/test/**` | `*.e2e-spec.ts` | Jest + NestApplication + supertest |
+| **Unit** | `src/**` | `*.spec.ts` | Jest |
+| **Integration** | `test/integration/**` | `*.int-spec.ts` | Jest + 실제 Postgres |
+| **E2E (HTTP)** | `test/**` | `*.e2e-spec.ts` | Jest + NestApplication + supertest |
+
+### Web (`apps/web`)
+
+| 레이어 | 위치 | 파일명 | 러너 |
+|---|---|---|---|
+| **Unit/Component** | `src/**` | `*.test.ts` / `*.test.tsx` | Vitest + RTL + jsdom |
+| **E2E (브라우저)** | `e2e/**` | `*.spec.ts` | Playwright (chromium) |
+
+API는 `.spec.ts`, Web은 `.test.ts`로 **파일명 자체가 러너를 구분**한다. Playwright E2E는 `e2e/` 폴더 안이라 위치로도 구분된다.
 
 ### 각 레이어가 하는 일
 
@@ -51,7 +62,7 @@ it("rolls back when the proposal base version does not match", async () => {
 
 ## 명령
 
-### 로컬
+### 로컬 — API (Jest)
 
 ```bash
 # TDD 기본 루프 — 단위 테스트만 watch
@@ -67,6 +78,30 @@ pnpm --filter @poomgeul/api run test
 
 # 커버리지(선택)
 pnpm --filter @poomgeul/api run test:coverage
+```
+
+### 로컬 — Web (Vitest + Playwright)
+
+```bash
+# 컴포넌트 TDD 루프
+pnpm --filter @poomgeul/web run test:watch
+
+# 한 번만
+pnpm --filter @poomgeul/web run test
+
+# 커버리지
+pnpm --filter @poomgeul/web run test:coverage
+
+# Playwright E2E (Next dev 서버 자동 기동/종료)
+pnpm --filter @poomgeul/web run test:e2e
+
+# Playwright UI 모드 — 트레이스 뷰어로 디버깅
+pnpm --filter @poomgeul/web run test:e2e:ui
+```
+
+Playwright 브라우저가 아직 설치 안 됐다면:
+```bash
+pnpm --filter @poomgeul/web exec playwright install chromium
 ```
 
 ### 로컬에서 통합 테스트 준비
@@ -171,22 +206,59 @@ describe("GET /healthz (e2e)", () => {
 - **다수 시나리오를 한 `it`에** — 실패 시 원인 추적이 어려워진다.
 - **상태 공유하는 `beforeAll`에서 DB 씨드 + 개별 it에서 수정** — `withRollback` 대신 상태가 누적되면 테스트 순서 의존이 생긴다.
 
+## Web 테스트 작성 팁 (Vitest + RTL)
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
+import Page from "./page.js";
+
+describe("Page", () => {
+  it("renders the heading", () => {
+    render(<Page />);
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+  });
+});
+```
+
+- `@testing-library/jest-dom/vitest`를 `src/test/setup.ts`에서 import — `toBeInTheDocument` 같은 matcher가 활성화.
+- Vitest `globals: true` 설정으로 `describe/it/expect`를 import 없이 쓸 수 있음 (tsconfig `types: ["vitest/globals"]`).
+
+## Playwright 테스트 작성 팁
+
+```ts
+import { expect, test } from "@playwright/test";
+
+test("landing shows project name", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: "poomgeul" })).toBeVisible();
+});
+```
+
+- `baseURL`이 `http://localhost:3001`로 잡혀 있어 상대 경로 `/`로 이동 가능.
+- `webServer` 옵션이 `pnpm dev`를 자동 기동·종료. 로컬에서 이미 dev 서버가 떠 있으면 재사용.
+- CI는 `retries: 2`, 로컬은 재시도 없음.
+- 실패 시 trace zip이 `apps/web/playwright-report/`에 생성 — `pnpm --filter @poomgeul/web run test:e2e:ui`로 열어볼 수 있음.
+
 ## CI 분리
 
-`.github/workflows/ci.yml`의 두 잡에 맞춰 레이어가 실행된다.
+`.github/workflows/ci.yml`의 세 잡에 맞춰 레이어가 실행된다.
 
 | 잡 | 실행 레이어 |
 |---|---|
-| `quality` | `test:unit` (빠름, 외부 의존 없음) |
-| `migrate-and-smoke` | `test:integration`, `test:e2e`, `/healthz` 스모크 |
+| `quality` | typecheck · lint · format · api `test:unit` · web Vitest |
+| `migrate-and-smoke` | api `test:integration`, api `test:e2e`, `/healthz` 스모크 |
+| `web-e2e` | Playwright (chromium, `actions/cache`로 브라우저 바이너리 캐시) |
 
-PR에서 단위 테스트만 깨져도 즉시 실패가 떠야 하고, 통합/e2e는 DB를 띄운 잡에서 순차 검증한다.
+PR에서 단위 테스트만 깨져도 즉시 실패가 떠야 하고, 통합/e2e와 브라우저 E2E는 각각 분리된 잡에서 병렬 실행된다.
 
 ## 로드맵
 
 - **커버리지 게이트**: M0 후반부에 `statements/branches ≥ 60%` 선부터 시작.
 - **mutation testing**: M1 이후 Stryker 도입 여부 결정.
-- **Web 테스트**: Playwright 혹은 Vitest + RTL로 별도 도입([ADR-0001 후기](../architecture/decisions/0001-backend-framework.md)).
+- **Playwright 멀티 브라우저**: 기본 Chromium만. WebKit/Firefox는 실제 크로스 브라우저 이슈가 보고된 뒤 추가.
+- **풀스택 E2E**: M0 auth/source 모듈이 붙으면 Playwright에서 API까지 동시 띄우는 시나리오 도입.
 
 ## 관련
 

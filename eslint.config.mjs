@@ -23,6 +23,8 @@ export default tseslint.config(
       "**/migrations/**",
       "packages/types/src/openapi.d.ts",
       "apps/web/next-env.d.ts",
+      "apps/web/playwright-report/**",
+      "apps/web/test-results/**",
     ],
   },
 
@@ -49,7 +51,7 @@ export default tseslint.config(
     },
   },
 
-  // Browser-side (Next.js web).
+  // Browser-side (Next.js web) — includes src/**, e2e/**, and root config files.
   {
     files: ["apps/web/**/*.{ts,tsx,js,jsx,mjs}"],
     plugins: {
@@ -82,7 +84,13 @@ export default tseslint.config(
 
   // Tests: relaxed typing in fixtures.
   {
-    files: ["**/*.test.ts", "**/*.spec.ts", "**/test/**/*.ts"],
+    files: [
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+      "**/test/**/*.ts",
+      "apps/web/e2e/**/*.ts",
+    ],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
     },
