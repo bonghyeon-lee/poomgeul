@@ -253,6 +253,26 @@ test("landing shows project name", async ({ page }) => {
 
 PR에서 단위 테스트만 깨져도 즉시 실패가 떠야 하고, 통합/e2e와 브라우저 E2E는 각각 분리된 잡에서 병렬 실행된다.
 
+## 실전 예시 — `parseSourceInput`
+
+첫 도메인 함수([apps/api/src/modules/source/input.ts](../../apps/api/src/modules/source/input.ts))를 Red-Green-Refactor 사이클로 키운 흐름:
+
+1. **Red 1 — bare arXiv ID 한 케이스만** 작성 → import 실패로 ❌.
+2. **Green 1 — 5줄 minimal stub.** ✅
+3. **Red 2 — versioned id (`2504.20451v2`)** 추가 → 기대값 mismatch.
+4. **Green 2 — `ARXIV_MODERN` 정규식 도입.**
+5. **Red/Green 3** — `arXiv:` 접두 + 좌우 공백 trim.
+6. **Red/Green 4** — `it.each`로 abs/pdf/ar5iv·http/https URL 6종 일괄 추가, `URL` 객체 + `ARXIV_PATH_ID` 정규식.
+7. **Red/Green 5** — DOI(순수/`doi:` 접두/URL/대소문자) 도입, `DoiId` 타입 추가.
+8. **Red/Green 6** — `SourceInputError`(`empty` / `unsupported`) throw, fallback 제거.
+
+최종 22개 단위 테스트, 외부 의존 0, watch 모드에서 사이클 1회당 < 2초. 원칙:
+
+- **Red는 항상 먼저** — 구현이 없는 상태에서 import 실패까지 ❌가 정상.
+- **Green은 가장 단순한 형태** — Red 2가 versioned id 한 줄을 요구하면, regex를 미리 일반화하지 않는다.
+- **여러 비슷한 케이스는 `it.each`로** — 가독성 + 추가 비용 ↓.
+- **에러도 시나리오** — `code` 필드를 갖는 커스텀 Error로 분기하면 호출 측이 if 트리 대신 좁은 union으로 다룸.
+
 ## 로드맵
 
 - **커버리지 게이트**: M0 후반부에 `statements/branches ≥ 60%` 선부터 시작.

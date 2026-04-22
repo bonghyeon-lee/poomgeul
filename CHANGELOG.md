@@ -8,6 +8,10 @@
 ## [Unreleased]
 
 ### Added
+- **`source/input` 첫 도메인 함수 (2026-04-23, TDD).** `apps/api/src/modules/source/input.ts`에 `parseSourceInput`/`SourceInputError` 도입.
+  - 지원 입력: 현대 arXiv ID(`2504.20451`, `2504.20451v2`), `arXiv:` 접두, arXiv URL(abs/pdf/html · arxiv.org · ar5iv.labs.arxiv.org · http/https · 쿼리·프래그먼트 무시), DOI(순수/`doi:` 접두/`doi.org` URL, 대소문자 정규화).
+  - 거부: 빈/공백 입력(`empty`), 구형 arXiv(`cs.AI/0601001`), 임의 URL/문자열(`unsupported`).
+  - 외부 의존 0, 단위 테스트 22건. Red-Green-Refactor 사이클 6회로 점진 작성 — 흐름은 [docs/guides/testing.md §실전 예시](docs/guides/testing.md) 참조.
 - **Web 테스트 기반 (2026-04-23).** `apps/web`에 Vitest + React Testing Library + jsdom, Playwright(chromium) 도입.
   - Vitest: `src/**/*.test.{ts,tsx}` 컴포넌트/유닛 레이어. `vitest.config.ts` + `src/test/setup.ts`(`@testing-library/jest-dom/vitest` 로드). `test` / `test:watch` / `test:coverage` 스크립트.
   - Playwright: `e2e/**/*.spec.ts` 브라우저 레이어. `playwright.config.ts`의 `webServer`가 `pnpm dev`를 자동 기동. `test:e2e` / `test:e2e:ui` 스크립트.
