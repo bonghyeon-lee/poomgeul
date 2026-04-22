@@ -11,6 +11,13 @@ venv/
 
 # Node
 node_modules/
+dist/
+build/
+.next/
+.turbo/
+*.tsbuildinfo
+coverage/
+.pnpm-store/
 
 # Editor / OS
 .DS_Store

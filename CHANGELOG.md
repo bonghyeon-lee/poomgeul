@@ -11,6 +11,12 @@
 - 초기 저장소 docs 스켈레톤 (`README`, `CONTRIBUTING`, `CODE_OF_CONDUCT`, `docs/` 트리, `prompts/`, `.github/`).
 - 기획서 v0.4 기반 M0/M1/M2 기능 명세, 아키텍처 문서, ADR 4건 초안.
 - 한국어 번역 스타일 가이드(§9.6 전문 이관).
+- **monorepo 부트스트랩 (2026-04-23).** `apps/{api,web}` + `packages/{db,types}` + pnpm workspace.
+  - 루트: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `.mise.toml`, `.nvmrc`, `.env.example`, `docker-compose.yml` (pgvector/pgvector:pg16).
+  - `packages/db`: Drizzle 스키마 15개 테이블 (users, sources, segments, translations, translationCollaborators, translationInvitations, translationSegments, translationRevisions, proposals, proposalComments, contributions, notes, glossaryEntries, tmUnits, alignments) + `drizzle.config.ts` + 첫 마이그레이션 SQL.
+  - `apps/api`: NestJS 10 + `@nestjs/swagger` + `class-validator` + Jest. `healthz` 엔드포인트 + `/api/docs` OpenAPI UI 동작 확인.
+  - `apps/web`: Next.js 14 App Router placeholder 페이지.
+  - 검증: `pnpm typecheck` 4개 워크스페이스 통과, `pnpm --filter @poomgeul/db migrate`로 실제 Postgres에 15개 테이블 생성 확인, `curl /healthz` 200 OK.
 
 ### Changed
 - **Gemini Flash PoC 결과 반영 (2026-04-23).** L2 정성 평가(3섹션·3모델·블라인드)로 M0 메인 LLM을 Gemini 2.5 Flash로 확정.

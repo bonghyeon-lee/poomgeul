@@ -15,7 +15,15 @@
 
 ## 지금 상태
 
-현재 저장소는 **Pre-M0(문서·기획 단계)** 입니다. 실행 가능한 코드가 포함되어 있지 않습니다. 실 구현은 Phase 1 M0 킥오프와 함께 시작됩니다. 진행 상황은 [docs/overview/roadmap.md](docs/overview/roadmap.md)에서 확인할 수 있습니다.
+**Pre-M0 · Bootstrap 완료.** 실 비즈니스 로직은 아직 없지만, monorepo 스켈레톤·Drizzle 스키마 15개 테이블 마이그레이션·NestJS API(healthz)·Next.js 웹이 모두 **실제로 동작**합니다.
+
+```bash
+pnpm install && cp .env.example .env && docker compose up -d postgres
+pnpm --filter @poomgeul/db migrate
+pnpm dev   # api:3000 + web:3001
+```
+
+자세한 절차는 [docs/guides/dev-setup.md](docs/guides/dev-setup.md). 진행 로드맵은 [docs/overview/roadmap.md](docs/overview/roadmap.md).
 
 ## 빠른 네비게이션
 
