@@ -65,6 +65,9 @@ poomgeul/
 │   │   │   ├── main.ts
 │   │   │   ├── app.module.ts
 │   │   │   └── modules/health/
+│   │   ├── tsconfig.json         # solution: build + test references
+│   │   ├── tsconfig.build.json   # 프로덕션 빌드 (spec 제외)
+│   │   ├── tsconfig.test.json    # spec / e2e 포함, jest 타입
 │   │   └── jest.config.cjs
 │   └── web/                 # Next.js 15 + React 19
 │       ├── next.config.mjs
@@ -154,6 +157,7 @@ pnpm test          # 각 워크스페이스 jest (--passWithNoTests) / web은 pl
 - **`ECONNREFUSED 127.0.0.1:5432`** — Postgres 컨테이너가 아직 기동 중. `docker compose ps`로 `healthy` 확인. 호스트에 이미 다른 Postgres가 5432를 점유 중이면 그걸 끄거나 compose의 host 포트를 변경.
 - **`mise WARN No version is set for shim: node`** — `mise trust` 한 번 실행.
 - **docker compose 포트 미노출** — `docker compose ps`에 `0.0.0.0:5432->5432/tcp` 매핑이 안 보이면 `docker compose down && docker compose up -d postgres`로 재생성.
+- **VS Code에서 `*.spec.ts`가 `Cannot find name 'describe'`** — TS Server가 다른 프로젝트를 골랐을 가능성. `apps/api/tsconfig.json`은 solution(빌드 + 테스트 두 reference)으로 구성되어 있으므로, 명령 팔레트 → "TypeScript: Restart TS server" 실행. 그래도 안 되면 동일 명령에서 "Select TypeScript Version" → workspace 버전 선택.
 
 ## CI
 

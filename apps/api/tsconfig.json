@@ -1,15 +1,15 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "target": "ES2023",
-    "types": ["node", "jest"]
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/**/*.spec.ts"]
+  // Solution-style root tsconfig.
+  //
+  // VS Code's TS Server uses this file to resolve which project a given file
+  // belongs to. Both the production build and the test surface are referenced
+  // here so that *.spec.ts (under src/) and *.e2e-spec.ts / *.int-spec.ts
+  // (under test/) get full IntelliSense without leaking jest globals into the
+  // production build.
+  //
+  // CLI:
+  //   pnpm exec tsc -b              # builds + typechecks all references
+  //   pnpm exec tsc -b tsconfig.build.json   # only the production project
+  "files": [],
+  "references": [{ "path": "./tsconfig.build.json" }, { "path": "./tsconfig.test.json" }]
 }

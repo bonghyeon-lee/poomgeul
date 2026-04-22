@@ -1,17 +1,17 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": ".",
-    "outDir": "./dist-test",
+    "outDir": "./dist",
+    "rootDir": "./src",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2023",
-    "types": ["node", "jest"],
-    "noEmit": true,
+    "types": ["node"],
     "composite": true,
-    "tsBuildInfoFile": "./.tsbuildinfo.test"
+    "tsBuildInfoFile": "./.tsbuildinfo.build"
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "src/**/*.spec.ts"]
 }

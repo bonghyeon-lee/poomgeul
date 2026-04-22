@@ -16,6 +16,8 @@ build/
 .next/
 .turbo/
 *.tsbuildinfo
+.tsbuildinfo*
+dist-test/
 coverage/
 .pnpm-store/
 

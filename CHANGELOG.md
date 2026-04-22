@@ -7,6 +7,15 @@
 
 ## [Unreleased]
 
+### Changed
+- **apps/api TypeScript Project References (2026-04-23).** VS Code TS Server가 `*.spec.ts`에서 `Cannot find name 'describe'`로 보고하던 이슈 해결.
+  - `apps/api/tsconfig.json`을 솔루션(루트)로 전환 — `references: [build, test]`만 가짐.
+  - `tsconfig.build.json` 신설 — 프로덕션 빌드 (`*.spec.ts` exclude, `composite: true`).
+  - `tsconfig.test.json` composite 대응 — base에서 직접 extends, jest 타입 포함, src/test 모두 include.
+  - 스크립트: `build`는 `tsc -b tsconfig.build.json`, `typecheck`는 `tsc -b`(솔루션 모드).
+  - `.gitignore`에 `.tsbuildinfo*`, `dist-test/` 추가.
+  - VS Code는 솔루션 tsconfig를 따라 spec 파일을 test 프로젝트로 인식, IntelliSense·type-check 정상.
+
 ### Added
 - **`source/input` 첫 도메인 함수 (2026-04-23, TDD).** `apps/api/src/modules/source/input.ts`에 `parseSourceInput`/`SourceInputError` 도입.
   - 지원 입력: 현대 arXiv ID(`2504.20451`, `2504.20451v2`), `arXiv:` 접두, arXiv URL(abs/pdf/html · arxiv.org · ar5iv.labs.arxiv.org · http/https · 쿼리·프래그먼트 무시), DOI(순수/`doi:` 접두/`doi.org` URL, 대소문자 정규화).
