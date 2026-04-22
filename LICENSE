@@ -1,0 +1,24 @@
+poomgeul core is licensed under the GNU Affero General Public License v3.0.
+
+The full AGPL-3.0 text is available at:
+  https://www.gnu.org/licenses/agpl-3.0.txt
+
+A copy should be included here at first code release. Until the code base lands,
+this file acts as a placeholder to declare the intended license.
+
+Copyright (c) 2026 poomgeul contributors.
+
+---
+
+### Components licensed separately
+
+- Future public SDKs / client libraries: Apache-2.0 (to be published alongside their source).
+- Prompts under `prompts/` are covered by AGPL-3.0 unless individual files
+  declare otherwise in their front-matter.
+- Documentation under `docs/` is CC BY 4.0 unless a file states otherwise.
+
+### Translated content
+
+User-contributed translations and imported source texts are subject to the
+license of the source work (see docs/policy/licensing.md). This file applies
+only to the software and documentation in this repository.
