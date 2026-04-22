@@ -36,7 +36,7 @@
 
 | # | 제목 | Status |
 |---|---|---|
-| [0001](0001-backend-framework.md) | 백엔드 프레임워크: FastAPI vs NestJS | Proposed |
+| [0001](0001-backend-framework.md) | 백엔드 프레임워크: NestJS + Drizzle (Node 24 LTS) | Accepted |
 | [0002](0002-llm-provider-abstraction.md) | LLM 프로바이더 추상화 — OpenRouter + 4-tier Cascade | Accepted |
 | [0003](0003-optimistic-locking.md) | 동시 편집 충돌 방어 — `segment.version` Optimistic Locking | Accepted |
 | [0004](0004-source-parser.md) | 원문 파싱 소스: ar5iv HTML 1차 경로 | Accepted |

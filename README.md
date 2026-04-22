@@ -11,7 +11,7 @@
 
 - **Phase 1 타겟:** 영어 arXiv CC BY 논문 → 한국어
 - **핵심 워크플로우:** AI 초벌(세그먼트 단위) → 리드 메인테이너 편집 → 누구나 제안(Proposal) → 승인/거절/머지
-- **기술 스택:** Next.js 14 + TypeScript / FastAPI or NestJS(미정) / PostgreSQL + pgvector / OpenRouter(Gemini Flash → Claude Haiku → Sonnet cascade)
+- **기술 스택:** Next.js 14 + TypeScript / NestJS (Node 24 LTS) / Drizzle ORM / PostgreSQL 16 + pgvector / Gemini 2.5 Flash 메인 + Claude Haiku·Sonnet cascade
 
 ## 지금 상태
 

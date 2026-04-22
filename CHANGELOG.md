@@ -17,6 +17,11 @@
   - L2 평균: α Flash **3.92** · β Haiku 3.25 · γ Sonnet **4.75**.
   - 분기 A′ 선택: Flash 메인 + Budget(Haiku)을 **가용성 폴백**으로만 유지, escalation 기본 타깃은 Sonnet.
   - 갱신 문서: `docs/guides/llm-integration.md`, `docs/architecture/decisions/0002-llm-provider-abstraction.md`, `docs/research/poc-gemini-flash.md`.
+- **백엔드 스택 확정 (2026-04-23, ADR-0001).** NestJS + Drizzle ORM + pnpm + Node.js 24 LTS.
+  - 프론트(Next.js 14·TS)와 언어 통일. Drizzle의 TS-first 스키마로 DTO/Entity 이중 정의 제거.
+  - pgvector는 `drizzle-orm/pg` `vector` 타입 + raw SQL 혼용. Prisma 런타임 엔진 회피.
+  - 타깃 디렉터리: `apps/{api,web}` + `packages/{db,types}` monorepo (pnpm workspace).
+  - 갱신 문서: `docs/architecture/decisions/0001-backend-framework.md`, `docs/guides/dev-setup.md`, `docs/architecture/system-overview.md`, `docs/architecture/data-model.md`, `docs/architecture/decisions/0003-optimistic-locking.md`(의사코드), `docs/architecture/decisions/README.md`, `README.md`.
 
 ---
 

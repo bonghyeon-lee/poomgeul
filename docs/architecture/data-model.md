@@ -239,6 +239,8 @@ M0는 Note 테이블만 존재하며 나머지는 스키마만 선정의.
 
 ## 마이그레이션 규약
 
-- 모든 마이그레이션은 **일방향**(up-only). 데이터 이관 필요한 수정은 별도 script.
+- 도구: **Drizzle Kit** (`drizzle-kit generate` + `drizzle-kit migrate`). [ADR-0001](decisions/0001-backend-framework.md).
+- 스키마 정본: `packages/db/schema.ts` (TypeScript). 생성된 SQL은 `packages/db/migrations/`에 커밋.
+- 모든 마이그레이션은 **일방향**(up-only). 데이터 이관이 필요한 수정은 생성 SQL을 **수작업 편집**하여 DML 포함. PR 리뷰에서 수작업 편집 여부 필수 확인.
 - `enum` 추가는 호환, 제거·변경은 major migration으로 표기.
-- 구체 마이그레이션 도구는 [ADR-0001](decisions/0001-backend-framework.md) 결정 후 확정(Alembic vs TypeORM 등).
+- pgvector 컬럼은 `vector` 타입으로 선언하되 M2 활성화 전까지 인덱스·KNN 쿼리는 도입하지 않음.

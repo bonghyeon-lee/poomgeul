@@ -50,28 +50,55 @@ M0에서 세그먼트는 세 경로로 동시에 변경될 수 있다.
 
 ## 구현 참고
 
-```python
-# pseudo code (FastAPI 기준)
-@app.post("/proposals/{id}/approve")
-def approve(id: UUID, lead=Depends(require_lead)):
-    p = get(Proposal, id, status='open')
-    ts = get(TranslationSegment, p.translation_id, p.segment_id)
-    if ts.version != p.base_segment_version:
-        raise HTTPException(409, detail={
-            "code": "rebase_required",
-            "current_version": ts.version,
-            "current_text": ts.text,
-        })
-    with tx():
-        ts.text = p.proposed_text
-        ts.version += 1
-        ts.last_editor_id = p.proposer_id
-        ts.last_edited_at = now()
-        ts.status = 'approved'
-        create(TranslationRevision, ...)
-        p.status = 'merged'
-        p.resolved_by = lead.id
-        p.resolved_at = now()
+```ts
+// pseudo code (NestJS + Drizzle 기준)
+@Post(':id/approve')
+@UseGuards(LeadMaintainerGuard)
+async approve(@Param('id') id: string, @CurrentUser() lead: User) {
+  return this.db.transaction(async (tx) => {
+    const p = await tx.query.proposals.findFirst({
+      where: and(eq(proposals.id, id), eq(proposals.status, 'open')),
+    });
+    if (!p) throw new NotFoundException();
+
+    const ts = await tx.query.translationSegments.findFirst({
+      where: and(
+        eq(translationSegments.translationId, p.translationId),
+        eq(translationSegments.segmentId, p.segmentId),
+      ),
+    });
+    if (ts.version !== p.baseSegmentVersion) {
+      throw new ConflictException({
+        code: 'rebase_required',
+        currentVersion: ts.version,
+        currentText: ts.text,
+      });
+    }
+    await tx.update(translationSegments)
+      .set({
+        text: p.proposedText,
+        version: ts.version + 1,
+        lastEditorId: p.proposerId,
+        lastEditedAt: new Date(),
+        status: 'approved',
+      })
+      .where(and(
+        eq(translationSegments.translationId, p.translationId),
+        eq(translationSegments.segmentId, p.segmentId),
+        eq(translationSegments.version, ts.version),  // extra guard
+      ));
+
+    await tx.insert(translationRevisions).values({
+      translationId: p.translationId,
+      authorId: p.proposerId,
+      mergedProposalId: p.id,
+      snapshot: /* ... */,
+    });
+    await tx.update(proposals)
+      .set({ status: 'merged', resolvedBy: lead.id, resolvedAt: new Date() })
+      .where(eq(proposals.id, p.id));
+  });
+}
 ```
 
 ## 관련

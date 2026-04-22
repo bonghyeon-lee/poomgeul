@@ -20,7 +20,7 @@
 └───────────────────────────┬────────────────────────────────┘
                             │  REST / WebSocket
 ┌───────────────────────────▼────────────────────────────────┐
-│  API Gateway (FastAPI or NestJS — ADR-0001)                │
+│  API Gateway (NestJS · Node 24 LTS — ADR-0001)             │
 │   · 인증·권한·티어                                         │
 │   · Source / Translation / Metadata CRUD (별도 권한)       │
 │   · Proposal 상태 머신                                     │
@@ -45,7 +45,7 @@
 | 컴포넌트 | 책임 | 주요 기술 |
 |---|---|---|
 | **Web App** | 사용자 인터페이스, 세션 관리, 낙관적 UI | Next.js 14, TypeScript, shadcn/ui, TanStack Query |
-| **API Gateway** | 인증·권한, CRUD, Proposal 상태 머신, 이벤트 발행 | FastAPI(Python) or NestJS(Node.js) — [ADR-0001](decisions/0001-backend-framework.md) |
+| **API Gateway** | 인증·권한, CRUD, Proposal 상태 머신, 이벤트 발행 | NestJS (Node.js 24 LTS, pnpm, Drizzle) — [ADR-0001](decisions/0001-backend-framework.md) |
 | **LLM 어댑터** | 프로바이더 추상화, cascade, 토큰/비용 관측, Zero Data Retention 정책 | OpenRouter — [ADR-0002](decisions/0002-llm-provider-abstraction.md) |
 | **원문/번역본 스토어** | 영속화, optimistic locking, 임베딩(M2) | PostgreSQL 15+ + pgvector |
 | **라이선스 검증 엔진** | import 시점에 외부 메타데이터 질의, CC BY-ND/NC-ND 차단, CC BY-SA 자동 상속 | 내부 서비스, 외부 API 클라이언트 |
