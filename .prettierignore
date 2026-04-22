@@ -1,0 +1,22 @@
+# Build artefacts
+**/node_modules
+**/dist
+**/build
+**/.next
+**/coverage
+**/.pnpm-store
+
+# Generated
+packages/types/src/openapi.d.ts
+apps/web/next-env.d.ts
+packages/db/migrations
+
+# Lock files & meta
+pnpm-lock.yaml
+.nvmrc
+
+# Markdown is intentionally NOT Prettier-managed for now.
+# Docs contain tables, ASCII diagrams, and hand-crafted line breaks that
+# auto-formatting mangles. Revisit when a docs pipeline is introduced.
+**/*.md
+

@@ -28,12 +28,10 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
-  // eslint-disable-next-line no-console
   console.log(`[api] listening on http://localhost:${port}`);
 }
 
 bootstrap().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error(err);
   process.exit(1);
 });

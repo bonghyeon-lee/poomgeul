@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start -p 3001",
     "typecheck": "tsc --noEmit",
-    "lint": "echo '[web] lint not configured yet — see TODO in CI ci.yml' && exit 0",
     "test": "echo '[web] tests not configured yet — Playwright/RTL to be added' && exit 0"
   },
   "dependencies": {
@@ -20,8 +19,6 @@
     "@types/node": "22.10.5",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "eslint": "9.17.0",
-    "eslint-config-next": "15.5.15",
     "typescript": "5.7.3"
   }
 }

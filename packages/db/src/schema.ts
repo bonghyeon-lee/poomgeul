@@ -14,7 +14,6 @@
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
-  boolean,
   integer,
   jsonb,
   pgEnum,
@@ -41,12 +40,7 @@ export const maintainerPolicyEnum = pgEnum("maintainer_policy", [
   "community-curated",
 ]);
 
-export const segmentKindEnum = pgEnum("segment_kind", [
-  "body",
-  "caption",
-  "footnote",
-  "reference",
-]);
+export const segmentKindEnum = pgEnum("segment_kind", ["body", "caption", "footnote", "reference"]);
 
 export const translationStatusEnum = pgEnum("translation_status", [
   "draft",
@@ -59,10 +53,7 @@ export const translationSegmentStatusEnum = pgEnum("translation_segment_status",
   "approved",
 ]);
 
-export const collaboratorRoleEnum = pgEnum("collaborator_role", [
-  "lead",
-  "collaborator",
-]);
+export const collaboratorRoleEnum = pgEnum("collaborator_role", ["lead", "collaborator"]);
 
 export const invitationStatusEnum = pgEnum("invitation_status", [
   "pending",
@@ -231,9 +222,7 @@ export const translationSegments = pgTable(
     aiDraftSource: jsonb("ai_draft_source"),
     version: integer("version").notNull().default(0), // optimistic locking (ADR-0003)
     lastEditorId: uuid("last_editor_id").references(() => users.id),
-    lastEditedAt: timestamp("last_edited_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    lastEditedAt: timestamp("last_edited_at", { withTimezone: true }).notNull().defaultNow(),
     status: translationSegmentStatusEnum("status").notNull().default("unreviewed"),
   },
   (t) => ({

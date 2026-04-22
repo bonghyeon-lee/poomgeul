@@ -31,10 +31,11 @@ jobs:
       - name: Typecheck
         run: pnpm -r run typecheck
 
-      # Lint is currently a no-op — see the TODO in apps/{api,web}/package.json.
-      # Keeping it in the pipeline so the check surface stays wired.
-      - name: Lint (no-op placeholder)
-        run: pnpm -r --if-present run lint
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
 
       - name: Test
         run: pnpm -r --if-present run test

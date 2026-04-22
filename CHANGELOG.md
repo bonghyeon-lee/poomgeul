@@ -11,6 +11,14 @@
 - 초기 저장소 docs 스켈레톤 (`README`, `CONTRIBUTING`, `CODE_OF_CONDUCT`, `docs/` 트리, `prompts/`, `.github/`).
 - 기획서 v0.4 기반 M0/M1/M2 기능 명세, 아키텍처 문서, ADR 4건 초안.
 - 한국어 번역 스타일 가이드(§9.6 전문 이관).
+- **ESLint + Prettier 설정 (2026-04-23).** 루트 단일 flat config에서 전 워크스페이스 관리.
+  - `eslint.config.mjs`: `@eslint/js` recommended + `typescript-eslint` v8 recommended + `eslint-config-prettier` (포매팅 규칙은 Prettier에 위임).
+  - `prettier.config.mjs`: printWidth 100, semi true, double quote, trailing comma all, LF.
+  - 마크다운은 `.prettierignore`로 제외 (표·다이어그램 보존).
+  - `.editorconfig` 추가 — LF·UTF-8·2-space.
+  - 개별 워크스페이스의 `lint`/`web test` placeholder 제거, 루트 `pnpm lint` · `pnpm format:check`로 통합.
+  - CI `quality` 잡의 placeholder를 실제 `pnpm lint` + `pnpm format:check`로 교체.
+  - Next.js 전용 ESLint 플러그인은 Next 15 업그레이드 시점까지 보류 (eslint 9 호환 이슈).
 - **GitHub Actions CI 파이프라인 (2026-04-23).** `.github/workflows/ci.yml`에 두 잡 구성.
   - `quality`: checkout → pnpm/setup-node(v4/v6) + `.nvmrc` → `pnpm install --frozen-lockfile` → typecheck · lint(no-op) · test.
   - `migrate-and-smoke`: `pgvector/pgvector:pg16` service → `pnpm --filter @poomgeul/db migrate` → API 백그라운드 부팅 → `/healthz` + `/api/docs-json` 검증.

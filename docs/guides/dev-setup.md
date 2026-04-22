@@ -152,7 +152,8 @@ pnpm test        # 각 워크스페이스 jest (--passWithNoTests)
 ### `quality` 잡
 - 체크아웃 → pnpm + Node 24 (`.nvmrc` 자동 인식) → `pnpm install --frozen-lockfile`
 - `pnpm -r run typecheck` — 4개 워크스페이스 tsc
-- `pnpm -r --if-present run lint` — 현재 placeholder(no-op), 추후 eslint 설정 추가
+- `pnpm lint` — 루트 ESLint flat config(`eslint.config.mjs`), typescript-eslint recommended + Prettier 호환
+- `pnpm format:check` — Prettier (마크다운은 현재 ignore 목록)
 - `pnpm -r --if-present run test` — apps/api는 jest(`--passWithNoTests`), web은 placeholder
 
 ### `migrate-and-smoke` 잡
@@ -167,7 +168,8 @@ pnpm test        # 각 워크스페이스 jest (--passWithNoTests)
 # 1) quality 잡과 동일
 pnpm install --frozen-lockfile
 pnpm -r run typecheck
-pnpm -r --if-present run lint
+pnpm lint
+pnpm format:check
 pnpm -r --if-present run test
 
 # 2) migrate-and-smoke 잡과 동일
@@ -178,10 +180,21 @@ curl -fsS http://localhost:3000/healthz
 curl -fsS http://localhost:3000/api/docs-json > /dev/null
 ```
 
+### 코드 스타일 — ESLint + Prettier
+
+- **ESLint**: 루트 `eslint.config.mjs` (flat config, typescript-eslint v8).
+  - 포매팅 규칙은 `eslint-config-prettier`로 전부 off — Prettier와 충돌 없음.
+  - `pnpm lint` / `pnpm lint:fix` 로 전체 실행.
+- **Prettier**: 루트 `prettier.config.mjs` (printWidth 100, semi true, doubleQuote, trailing comma all).
+  - `pnpm format:check` / `pnpm format` 으로 전체 실행.
+  - 마크다운은 현재 `.prettierignore`에 포함 — 표·ASCII 다이어그램이 많아 자동 포맷이 붕괴 위험.
+- **에디터 자동 포매팅**: `.editorconfig`가 LF·UTF-8·2-space를 선언. VS Code/Cursor는 "Format on Save" + Prettier 확장 권장.
+
 ### 알려진 TODO
-- **Lint 미구성.** ADR-0001 스택(TS·NestJS·Next 14)에 맞춘 eslint + prettier 설정은 별도 PR에서 추가 예정. 현재는 CI 표면만 유지.
-- **Web 테스트 프레임워크 미선택.** Playwright/RTL 중 M0 e2e 시나리오에 맞춰 도입.
+- **Next.js용 ESLint 플러그인 보류.** `eslint-config-next@14`는 ESLint 9 flat config와 호환이 불안정. Next 15 업그레이드 시 `@next/eslint-plugin-next` 도입. 현재는 `next build`의 내장 검증에 의존.
+- **Web 테스트 프레임워크 미선택.** Playwright / RTL 중 M0 e2e 시나리오에 맞춰 도입.
 - **Branch protection.** 이 두 잡을 main 브랜치 required check으로 지정하는 것은 저장소가 공개 전환될 때.
+- **마크다운 포매팅.** docs 파이프라인(Vale·markdownlint 등) 도입 시점에 Prettier 포함 재검토.
 
 ## 자주 찾게 될 참조
 
