@@ -12,7 +12,7 @@
 └───────────────────────────┬────────────────────────────────┘
                             │
 ┌───────────────────────────▼────────────────────────────────┐
-│  Web App (Next.js 14)                                      │
+│  Web App (Next.js 15 · React 19)                           │
 │   · 원문·번역 병렬 에디터                                  │
 │   · Proposal 패널 (열림/머지 리스트)                       │
 │   · 프로필·기여 이력 (M1)                                  │
@@ -44,7 +44,7 @@
 
 | 컴포넌트 | 책임 | 주요 기술 |
 |---|---|---|
-| **Web App** | 사용자 인터페이스, 세션 관리, 낙관적 UI | Next.js 14, TypeScript, shadcn/ui, TanStack Query |
+| **Web App** | 사용자 인터페이스, 세션 관리, 낙관적 UI | Next.js 15 + React 19, TypeScript, shadcn/ui, TanStack Query |
 | **API Gateway** | 인증·권한, CRUD, Proposal 상태 머신, 이벤트 발행 | NestJS (Node.js 24 LTS, pnpm, Drizzle) — [ADR-0001](decisions/0001-backend-framework.md) |
 | **LLM 어댑터** | 프로바이더 추상화, cascade, 토큰/비용 관측, Zero Data Retention 정책 | OpenRouter — [ADR-0002](decisions/0002-llm-provider-abstraction.md) |
 | **원문/번역본 스토어** | 영속화, optimistic locking, 임베딩(M2) | PostgreSQL 15+ + pgvector |

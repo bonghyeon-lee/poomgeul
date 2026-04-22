@@ -8,7 +8,7 @@
 
 ## 기술 스택
 
-- **Frontend:** Next.js 14 + TypeScript
+- **Frontend:** Next.js 15.5 LTS + React 19 + TypeScript
 - **Backend:** NestJS (TypeScript) — [ADR-0001](../architecture/decisions/0001-backend-framework.md)
 - **ORM:** Drizzle ORM (`drizzle-orm/pg`) + `drizzle-kit`
 - **DB:** PostgreSQL 16 + pgvector (`pgvector/pgvector:pg16` 이미지)
@@ -65,8 +65,8 @@ poomgeul/
 │   │   │   ├── main.ts
 │   │   │   ├── app.module.ts
 │   │   │   └── modules/health/
-│   │   └── jest.config.ts
-│   └── web/                 # Next.js 14
+│   │   └── jest.config.cjs
+│   └── web/                 # Next.js 15 + React 19
 │       ├── next.config.mjs
 │       └── src/app/{layout.tsx,page.tsx}
 ├── packages/
@@ -89,11 +89,14 @@ poomgeul/
 ## 루트 스크립트
 
 ```bash
-pnpm dev         # apps/* 동시 실행 (api + web)
-pnpm build       # 전 워크스페이스 빌드
-pnpm typecheck   # 전 워크스페이스 tsc --noEmit
-pnpm lint        # 각 워크스페이스 lint
-pnpm test        # 각 워크스페이스 jest (--passWithNoTests)
+pnpm dev           # apps/* 동시 실행 (api + web)
+pnpm build         # 전 워크스페이스 빌드
+pnpm typecheck     # 전 워크스페이스 tsc --noEmit
+pnpm lint          # 루트 ESLint flat config로 전체 검사
+pnpm lint:fix      # 같은 내용을 --fix 적용
+pnpm format        # Prettier --write .
+pnpm format:check  # Prettier --check . (CI에서 사용)
+pnpm test          # 각 워크스페이스 jest (--passWithNoTests) / web은 placeholder
 ```
 
 ## Drizzle 사용 규약
@@ -143,7 +146,7 @@ pnpm test        # 각 워크스페이스 jest (--passWithNoTests)
 
 - **`ECONNREFUSED 127.0.0.1:5432`** — Postgres 컨테이너가 아직 기동 중. `docker compose ps`로 `healthy` 확인. 호스트에 이미 다른 Postgres가 5432를 점유 중이면 그걸 끄거나 compose의 host 포트를 변경.
 - **`mise WARN No version is set for shim: node`** — `mise trust` 한 번 실행.
-- **Next.js eslint 피어 경고** — `eslint-config-next@14`가 eslint v9를 아직 공식 지원하지 않음. 당장은 경고 허용. Next 15 업그레이드 시 해소 예정.
+- **docker compose 포트 미노출** — `docker compose ps`에 `0.0.0.0:5432->5432/tcp` 매핑이 안 보이면 `docker compose down && docker compose up -d postgres`로 재생성.
 
 ## CI
 
@@ -183,6 +186,7 @@ curl -fsS http://localhost:3000/api/docs-json > /dev/null
 ### 코드 스타일 — ESLint + Prettier
 
 - **ESLint**: 루트 `eslint.config.mjs` (flat config, typescript-eslint v8).
+  - `apps/web/**`에 `@next/eslint-plugin-next`의 recommended + core-web-vitals 규칙 배선. `settings.next.rootDir="apps/web/"`로 모노레포 경로 명시.
   - 포매팅 규칙은 `eslint-config-prettier`로 전부 off — Prettier와 충돌 없음.
   - `pnpm lint` / `pnpm lint:fix` 로 전체 실행.
 - **Prettier**: 루트 `prettier.config.mjs` (printWidth 100, semi true, doubleQuote, trailing comma all).
@@ -191,7 +195,6 @@ curl -fsS http://localhost:3000/api/docs-json > /dev/null
 - **에디터 자동 포매팅**: `.editorconfig`가 LF·UTF-8·2-space를 선언. VS Code/Cursor는 "Format on Save" + Prettier 확장 권장.
 
 ### 알려진 TODO
-- **Next.js용 ESLint 플러그인 보류.** `eslint-config-next@14`는 ESLint 9 flat config와 호환이 불안정. Next 15 업그레이드 시 `@next/eslint-plugin-next` 도입. 현재는 `next build`의 내장 검증에 의존.
 - **Web 테스트 프레임워크 미선택.** Playwright / RTL 중 M0 e2e 시나리오에 맞춰 도입.
 - **Branch protection.** 이 두 잡을 main 브랜치 required check으로 지정하는 것은 저장소가 공개 전환될 때.
 - **마크다운 포매팅.** docs 파이프라인(Vale·markdownlint 등) 도입 시점에 Prettier 포함 재검토.

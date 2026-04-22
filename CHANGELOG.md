@@ -12,13 +12,12 @@
 - 기획서 v0.4 기반 M0/M1/M2 기능 명세, 아키텍처 문서, ADR 4건 초안.
 - 한국어 번역 스타일 가이드(§9.6 전문 이관).
 - **ESLint + Prettier 설정 (2026-04-23).** 루트 단일 flat config에서 전 워크스페이스 관리.
-  - `eslint.config.mjs`: `@eslint/js` recommended + `typescript-eslint` v8 recommended + `eslint-config-prettier` (포매팅 규칙은 Prettier에 위임).
+  - `eslint.config.mjs`: `@eslint/js` recommended + `typescript-eslint` v8 recommended + `@next/eslint-plugin-next` (recommended + core-web-vitals, `settings.next.rootDir="apps/web/"`) + `eslint-config-prettier` (포매팅은 Prettier에 위임).
   - `prettier.config.mjs`: printWidth 100, semi true, double quote, trailing comma all, LF.
   - 마크다운은 `.prettierignore`로 제외 (표·다이어그램 보존).
   - `.editorconfig` 추가 — LF·UTF-8·2-space.
   - 개별 워크스페이스의 `lint`/`web test` placeholder 제거, 루트 `pnpm lint` · `pnpm format:check`로 통합.
   - CI `quality` 잡의 placeholder를 실제 `pnpm lint` + `pnpm format:check`로 교체.
-  - Next.js 전용 ESLint 플러그인은 Next 15 업그레이드 시점까지 보류 (eslint 9 호환 이슈).
 - **GitHub Actions CI 파이프라인 (2026-04-23).** `.github/workflows/ci.yml`에 두 잡 구성.
   - `quality`: checkout → pnpm/setup-node(v4/v6) + `.nvmrc` → `pnpm install --frozen-lockfile` → typecheck · lint(no-op) · test.
   - `migrate-and-smoke`: `pgvector/pgvector:pg16` service → `pnpm --filter @poomgeul/db migrate` → API 백그라운드 부팅 → `/healthz` + `/api/docs-json` 검증.
@@ -28,7 +27,7 @@
   - 루트: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `.mise.toml`, `.nvmrc`, `.env.example`, `docker-compose.yml` (pgvector/pgvector:pg16).
   - `packages/db`: Drizzle 스키마 15개 테이블 (users, sources, segments, translations, translationCollaborators, translationInvitations, translationSegments, translationRevisions, proposals, proposalComments, contributions, notes, glossaryEntries, tmUnits, alignments) + `drizzle.config.ts` + 첫 마이그레이션 SQL.
   - `apps/api`: NestJS 10 + `@nestjs/swagger` + `class-validator` + Jest. `healthz` 엔드포인트 + `/api/docs` OpenAPI UI 동작 확인.
-  - `apps/web`: Next.js 14 App Router placeholder 페이지.
+  - `apps/web`: Next.js 15.5 LTS + React 19 App Router placeholder 페이지. `typedRoutes` stable, `reactStrictMode: true`.
   - 검증: `pnpm typecheck` 4개 워크스페이스 통과, `pnpm --filter @poomgeul/db migrate`로 실제 Postgres에 15개 테이블 생성 확인, `curl /healthz` 200 OK.
 
 ### Changed
@@ -37,7 +36,7 @@
   - 분기 A′ 선택: Flash 메인 + Budget(Haiku)을 **가용성 폴백**으로만 유지, escalation 기본 타깃은 Sonnet.
   - 갱신 문서: `docs/guides/llm-integration.md`, `docs/architecture/decisions/0002-llm-provider-abstraction.md`, `docs/research/poc-gemini-flash.md`.
 - **백엔드 스택 확정 (2026-04-23, ADR-0001).** NestJS + Drizzle ORM + pnpm + Node.js 24 LTS.
-  - 프론트(Next.js 14·TS)와 언어 통일. Drizzle의 TS-first 스키마로 DTO/Entity 이중 정의 제거.
+  - 프론트(Next.js + TS)와 언어 통일. Drizzle의 TS-first 스키마로 DTO/Entity 이중 정의 제거.
   - pgvector는 `drizzle-orm/pg` `vector` 타입 + raw SQL 혼용. Prisma 런타임 엔진 회피.
   - 타깃 디렉터리: `apps/{api,web}` + `packages/{db,types}` monorepo (pnpm workspace).
   - 갱신 문서: `docs/architecture/decisions/0001-backend-framework.md`, `docs/guides/dev-setup.md`, `docs/architecture/system-overview.md`, `docs/architecture/data-model.md`, `docs/architecture/decisions/0003-optimistic-locking.md`(의사코드), `docs/architecture/decisions/README.md`, `README.md`.

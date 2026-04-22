@@ -76,7 +76,7 @@ apps/
 │   │       └── proposal/    # Proposal 상태 머신
 │   ├── test/                # Jest + Supertest e2e
 │   └── package.json
-├── web/                     # Next.js 14
+├── web/                     # Next.js 15 + React 19
 └── ...
 packages/
 ├── db/                      # Drizzle schema + migrations (공용)
@@ -85,6 +85,10 @@ packages/
 │   └── package.json
 └── types/                   # OpenAPI 생성 타입 + 공용 enum
 ```
+
+## 후기 (2026-04-23)
+
+본 ADR을 확정할 당시에는 프론트엔드가 Next.js 14였다. 이후 같은 날 Next.js 15.5 LTS + React 19로 업그레이드되어 현재 `apps/web`은 Next 15 기준이다. 본 결정(NestJS + Drizzle + Node 24 LTS)은 프론트 메이저 버전과 독립적으로 유효하다.
 
 ## 관련
 
