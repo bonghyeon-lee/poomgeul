@@ -1,0 +1,107 @@
+# LLM 통합 가이드
+
+![phase](https://img.shields.io/badge/phase-M0%2B-green)
+
+[ADR-0002 LLM 프로바이더 추상화](../architecture/decisions/0002-llm-provider-abstraction.md)를 구현 수준에서 풀어쓴 가이드입니다.
+
+## 비용 목표
+
+- **M0 메인 경로: 월 $2~5** (기획서 §15.2·CHANGELOG v0.4).
+- 달성 전략: Gemini 2.5 Flash 무료 tier + Batch 할인 + 공격적 캐시.
+
+## 4-tier Cascade
+
+| Tier | 용도 | 기본 모델 | 비고 |
+|---|---|---|---|
+| **Free** | M0 메인 경로, 표준 산문 | `google/gemini-2.5-flash` | 학습 opt-out 정책 확인 필수 |
+| **Budget** | Free 품질 미달 / 폴백 | `anthropic/claude-haiku-4-5-20251001` (Batch API) | ZDR 적용 |
+| **Mid** | 고난이도(수식·테크니컬) 세그먼트 | `anthropic/claude-sonnet-4-6` / `openai/gpt-4o` | M1에서 사용 시작 |
+| **Premium** | Featured 검수 (M2) | `anthropic/claude-opus-*` / `openai/gpt-4-turbo` | 선택적 |
+
+## 어댑터 인터페이스 (목표 형태)
+
+```python
+class LLMAdapter(Protocol):
+    async def translate(
+        self,
+        segments: list[SegmentInput],
+        *,
+        tier: Tier = Tier.FREE,
+        prompt_version: str = "translate.en-ko.v1",
+        glossary: list[GlossaryEntry] | None = None,   # M2부터 non-None
+    ) -> list[TranslationOutput]: ...
+```
+
+- 호출자는 `tier`만 바꿔 상향 재시도 가능.
+- `prompt_version`은 `prompts/` 파일명 규약과 1:1 매핑.
+- 응답에는 `{text, model, prompt_hash, input_tokens, output_tokens, cost_usd, latency_ms}` 포함.
+
+## Cascade 결정 규칙 (M0)
+
+```
+1. Tier.FREE로 초벌 생성.
+2. 자동 지표 실패 시 Tier.BUDGET으로 재생성:
+   - 출력 길이 < 입력의 20% (잘린 추정)
+   - 감지 패턴: 원문을 영어 그대로 출력
+   - 세그먼트별 perplexity proxy 임계 초과
+3. Lead가 "다시 생성(better model)" 클릭 시 즉시 BUDGET → MID 업그레이드.
+```
+
+M1 이후 지표 보강 전까지는 **자동 cascade는 Free → Budget 한 단계만**.
+
+## 데이터 경계 (중요)
+
+기획서 §10.5 준수. 무료 tier 경로로 **절대 전송 금지**인 데이터:
+
+- 기여자가 작성한 교정·코멘트·제안 본문.
+- 아직 공개되지 않은 저자 직접 등록 원문(유형 A).
+- 계정 식별자·이메일을 포함한 프롬프트.
+
+**구현 체크:**
+- [ ] LLM 어댑터 진입 시 페이로드 validator가 위 범주를 검사.
+- [ ] 위반 시 자동 Budget tier(ZDR) 경로로 전환.
+- [ ] 위반 로그는 내부 모니터링 (사용자 알림 없음).
+
+## Batch vs Realtime
+
+- **초기 import + 전체 세그먼트 초벌** → Batch API 경로 (비용 절감).
+- **리드가 "이 세그먼트 다시 생성"** → Realtime 경로 (응답 지연 최소).
+
+Batch 응답 도착 전까지 UI는 `ai_draft_text`가 비어 있는 상태를 "생성 중" 표시.
+
+## 토큰·비용 관측
+
+모든 호출에 대해 아래 메트릭 수집:
+
+| 필드 | 사용처 |
+|---|---|
+| `model`, `tier` | 비용 breakdown |
+| `input_tokens`, `output_tokens` | 월 예산 alert |
+| `latency_ms` | UX 모니터링 |
+| `prompt_hash` | 프롬프트 회귀 비교 |
+| `failure_reason` | Cascade 분석 |
+
+월 $5 초과 예상 시 자동 알림 + Admin 대시보드 배지.
+
+## 실패·재시도
+
+- **Transient (5xx, rate limit):** exponential backoff, 최대 3회.
+- **Permanent (권한, 형식 오류):** 즉시 실패 + 다음 tier 폴백.
+- **세그먼트 개별 실패:** 나머지는 진행, 실패 세그먼트는 "재시도" 버튼 노출.
+
+## 프롬프트 버저닝
+
+- 프롬프트 파일명 = 버전 (예: `prompts/translate.en-ko.v1.md`).
+- LLM 어댑터는 **파일 경로로 직접 로드**(DB·설정 서버 경유 안 함).
+- 새 프롬프트 → 파일명에 `v2` 부여, M2 "번역본별 커스텀 프롬프트"에서 분기.
+
+## PoC 현황
+
+- Gemini 2.5 Flash 품질 검증 PoC는 [research/poc-gemini-flash.md](../research/poc-gemini-flash.md) 참조.
+- **PoC 결론 반영 대기:** Free tier 메인 모델 최종 확정. 분기 A(Flash 단독) / B(Flash → Haiku Cascade) / C(Flash 실격) / D(2차 PoC 필요) 중 결과에 따라 본 문서의 기본 모델이 갱신됩니다.
+
+## 관련
+
+- [ADR-0002](../architecture/decisions/0002-llm-provider-abstraction.md)
+- [prompts/README.md](../../prompts/README.md)
+- [policy/licensing.md §10.5](../policy/licensing.md)
