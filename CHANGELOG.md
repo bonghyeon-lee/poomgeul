@@ -12,6 +12,12 @@
 - 기획서 v0.4 기반 M0/M1/M2 기능 명세, 아키텍처 문서, ADR 4건 초안.
 - 한국어 번역 스타일 가이드(§9.6 전문 이관).
 
+### Changed
+- **Gemini Flash PoC 결과 반영 (2026-04-23).** L2 정성 평가(3섹션·3모델·블라인드)로 M0 메인 LLM을 Gemini 2.5 Flash로 확정.
+  - L2 평균: α Flash **3.92** · β Haiku 3.25 · γ Sonnet **4.75**.
+  - 분기 A′ 선택: Flash 메인 + Budget(Haiku)을 **가용성 폴백**으로만 유지, escalation 기본 타깃은 Sonnet.
+  - 갱신 문서: `docs/guides/llm-integration.md`, `docs/architecture/decisions/0002-llm-provider-abstraction.md`, `docs/research/poc-gemini-flash.md`.
+
 ---
 
 ## [M0] — TBD (Phase 1 MVP)

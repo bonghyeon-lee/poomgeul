@@ -1,7 +1,7 @@
 # 0002. LLM 프로바이더 추상화 — OpenRouter + 4-tier Cascade
 
-- **Status:** Accepted
-- **Date:** 2026-04-22
+- **Status:** Accepted (cascade 기본 모델은 2026-04-23 PoC로 확정)
+- **Date:** 2026-04-22 (created) · 2026-04-23 (PoC 반영 개정)
 - **Deciders:** @bonghyeon
 
 ## Context
@@ -18,14 +18,14 @@ AI 초벌 번역이 M0의 핵심 기능이고, 운영 비용의 대부분을 차
 
 **OpenRouter를 1차 추상화 레이어로 채택**하고, 아래 4-tier cascade 전략을 구현한다.
 
-| Tier | 용도 | 기본 모델 (후보) | 비용 목표 |
+| Tier | 용도 | 기본 모델 | 비용 목표 |
 |---|---|---|---|
-| Free | M0 메인 경로, 표준 산문 | Gemini 2.5 Flash (Google AI Studio 또는 OpenRouter free) | $0 |
-| Budget | Free에서 품질 미달 신호 | Claude Haiku 4.5 / GPT-4o-mini (Batch API) | ~$0.5/1M tokens |
-| Mid | 고난이도 세그먼트(수식·테크니컬) | Claude Sonnet 4.6 / GPT-4o | 필요 시 |
-| Premium | 크리티컬 (featured 번역 검수) | Claude Opus / GPT-4-turbo | M2+ 검토 |
+| Free | M0 메인 경로, 표준 산문 | Gemini 2.5 Flash | $0 |
+| Budget | Free 장애·rate limit 폴백 | Claude Haiku 4.5 (Batch API) | ~$0.5/1M tokens |
+| Mid | 고난이도 세그먼트 + escalation 기본 타깃 | Claude Sonnet 4.6 | 필요 시 |
+| Premium | Featured 번역 검수 | Claude Opus | M2+ 검토 |
 
-Cascade 트리거(예): 자동 지표(COMET-QE, perplexity proxy) 또는 리드 메인테이너의 "이 세그먼트 다시 생성(better model)" 액션.
+Cascade 트리거(예): 자동 지표(COMET-QE, perplexity proxy) 또는 리드 메인테이너의 "이 세그먼트 다시 생성(better model)" 액션. **Better model 상향 시 Budget(Haiku)은 건너뛰고 Mid(Sonnet)으로** — 아래 Consequences 참조.
 
 ## Alternatives considered
 
@@ -53,6 +53,17 @@ Cascade 트리거(예): 자동 지표(COMET-QE, perplexity proxy) 또는 리드 
 
 ### 뒤집기 비용
 LLM 어댑터 인터페이스를 좁게 유지하면 낮음(1~2일 수준). 운영 로그·비용 대시보드 포팅 공수는 별도.
+
+## 2026-04-23 개정 — PoC 결과 반영
+
+[research/poc-gemini-flash.md](../../research/poc-gemini-flash.md)의 L2 정성 평가 결과로 cascade 배치를 일부 수정.
+
+**수치:** L2 평균 — α Gemini Flash 3.92 · β Claude Haiku 4.5 3.25 · γ Claude Sonnet 4.6 4.75.
+
+**바뀐 것:**
+- Budget(Haiku)의 역할을 **"Free 품질 미달 신호 시 폴백"에서 "Free 장애·rate limit 폴백"으로 변경.** PoC에서 Flash > Haiku였으므로, 품질 근거로 Haiku에 내려가는 건 악화.
+- **Escalation 기본 타깃이 Haiku가 아닌 Sonnet.** 리드가 "better model" 버튼을 눌렀을 때 Mid(Sonnet)로 직행.
+- 무료 tier 데이터 경계 정책은 변동 없음 ([policy/licensing.md §10.5](../../policy/licensing.md)).
 
 ## 관련
 
