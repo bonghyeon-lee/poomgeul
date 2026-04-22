@@ -11,6 +11,11 @@
 - 초기 저장소 docs 스켈레톤 (`README`, `CONTRIBUTING`, `CODE_OF_CONDUCT`, `docs/` 트리, `prompts/`, `.github/`).
 - 기획서 v0.4 기반 M0/M1/M2 기능 명세, 아키텍처 문서, ADR 4건 초안.
 - 한국어 번역 스타일 가이드(§9.6 전문 이관).
+- **GitHub Actions CI 파이프라인 (2026-04-23).** `.github/workflows/ci.yml`에 두 잡 구성.
+  - `quality`: checkout → pnpm/setup-node(v4/v6) + `.nvmrc` → `pnpm install --frozen-lockfile` → typecheck · lint(no-op) · test.
+  - `migrate-and-smoke`: `pgvector/pgvector:pg16` service → `pnpm --filter @poomgeul/db migrate` → API 백그라운드 부팅 → `/healthz` + `/api/docs-json` 검증.
+  - lint·web test는 placeholder로 두되 CI 체크 표면은 유지 (TODO는 ci.yml·dev-setup.md에 명시).
+  - api jest config를 `jest.config.ts` → `jest.config.cjs`로 이동(`ts-node` 의존 회피).
 - **monorepo 부트스트랩 (2026-04-23).** `apps/{api,web}` + `packages/{db,types}` + pnpm workspace.
   - 루트: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `.mise.toml`, `.nvmrc`, `.env.example`, `docker-compose.yml` (pgvector/pgvector:pg16).
   - `packages/db`: Drizzle 스키마 15개 테이블 (users, sources, segments, translations, translationCollaborators, translationInvitations, translationSegments, translationRevisions, proposals, proposalComments, contributions, notes, glossaryEntries, tmUnits, alignments) + `drizzle.config.ts` + 첫 마이그레이션 SQL.

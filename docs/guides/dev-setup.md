@@ -145,10 +145,43 @@ pnpm test        # 각 워크스페이스 jest (--passWithNoTests)
 - **`mise WARN No version is set for shim: node`** — `mise trust` 한 번 실행.
 - **Next.js eslint 피어 경고** — `eslint-config-next@14`가 eslint v9를 아직 공식 지원하지 않음. 당장은 경고 허용. Next 15 업그레이드 시 해소 예정.
 
-## CI (타깃)
+## CI
 
-- `.github/workflows/`에 GitHub Actions 워크플로우는 **코드 유입 후** 추가. 필수 체크: `pnpm typecheck`, `pnpm lint`, `pnpm test`, e2e 스모크.
-- Node 매트릭스는 LTS 24 단일.
+`.github/workflows/ci.yml`에 GitHub Actions 파이프라인 구성됨. 2개 잡이 병렬로 돌아감.
+
+### `quality` 잡
+- 체크아웃 → pnpm + Node 24 (`.nvmrc` 자동 인식) → `pnpm install --frozen-lockfile`
+- `pnpm -r run typecheck` — 4개 워크스페이스 tsc
+- `pnpm -r --if-present run lint` — 현재 placeholder(no-op), 추후 eslint 설정 추가
+- `pnpm -r --if-present run test` — apps/api는 jest(`--passWithNoTests`), web은 placeholder
+
+### `migrate-and-smoke` 잡
+- Postgres `pgvector/pgvector:pg16` 서비스 컨테이너 (5432)
+- `pnpm --filter @poomgeul/db migrate` — 15개 테이블 실제 생성
+- API 백그라운드 기동 → 30초 내 `/healthz` 200 대기
+- `/api/docs-json` 200 검증
+
+### 로컬에서 CI 재현
+
+```bash
+# 1) quality 잡과 동일
+pnpm install --frozen-lockfile
+pnpm -r run typecheck
+pnpm -r --if-present run lint
+pnpm -r --if-present run test
+
+# 2) migrate-and-smoke 잡과 동일
+docker compose up -d postgres
+pnpm --filter @poomgeul/db migrate
+pnpm --filter @poomgeul/api dev &
+curl -fsS http://localhost:3000/healthz
+curl -fsS http://localhost:3000/api/docs-json > /dev/null
+```
+
+### 알려진 TODO
+- **Lint 미구성.** ADR-0001 스택(TS·NestJS·Next 14)에 맞춘 eslint + prettier 설정은 별도 PR에서 추가 예정. 현재는 CI 표면만 유지.
+- **Web 테스트 프레임워크 미선택.** Playwright/RTL 중 M0 e2e 시나리오에 맞춰 도입.
+- **Branch protection.** 이 두 잡을 main 브랜치 required check으로 지정하는 것은 저장소가 공개 전환될 때.
 
 ## 자주 찾게 될 참조
 

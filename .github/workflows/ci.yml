@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: typecheck · lint · test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm -r run typecheck
+
+      # Lint is currently a no-op — see the TODO in apps/{api,web}/package.json.
+      # Keeping it in the pipeline so the check surface stays wired.
+      - name: Lint (no-op placeholder)
+        run: pnpm -r --if-present run lint
+
+      - name: Test
+        run: pnpm -r --if-present run test
+
+  migrate-and-smoke:
+    name: db migrate · api smoke
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: poomgeul
+          POSTGRES_USER: poomgeul
+          POSTGRES_PASSWORD: poomgeul
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U poomgeul"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: postgres://poomgeul:poomgeul@localhost:5432/poomgeul
+      PORT: "3000"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply Drizzle migrations
+        run: pnpm --filter @poomgeul/db migrate
+
+      - name: Boot API in background
+        run: |
+          pnpm --filter @poomgeul/api dev &
+          echo "API_PID=$!" >> $GITHUB_ENV
+
+      - name: Wait for /healthz
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/healthz > /dev/null; then
+              echo "api is up"; exit 0
+            fi
+            sleep 1
+          done
+          echo "api did not become healthy in 30s" >&2
+          exit 1
+
+      - name: Smoke — /healthz returns status ok
+        run: |
+          body=$(curl -fsS http://localhost:3000/healthz)
+          echo "$body"
+          echo "$body" | grep -q '"status":"ok"'
+
+      - name: Smoke — /api/docs-json serves OpenAPI
+        run: |
+          http_code=$(curl -o /dev/null -s -w "%{http_code}" http://localhost:3000/api/docs-json)
+          echo "http=$http_code"
+          [ "$http_code" = "200" ]
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -n "${API_PID:-}" ]; then
+            kill "$API_PID" 2>/dev/null || true
+          fi
