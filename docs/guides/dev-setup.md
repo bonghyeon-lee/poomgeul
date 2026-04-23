@@ -52,8 +52,12 @@ pnpm dev          # api(3000) + web(3001) 동시 기동
 
 성공 확인:
 - `curl http://localhost:3000/healthz` → `{"status":"ok"}`
-- `open http://localhost:3000/api/docs` (Swagger UI)
+- `curl "http://localhost:3000/api/sources/license?input=2310.12345"` → `outcome:"allowed"` 등 discriminated union
 - `open http://localhost:3001` (Next 랜딩)
+- `open http://localhost:3001/import` → 실제 `/api/*` 호출 (web의 next rewrite가 `:3000`으로 프록시)
+- `open http://localhost:3000/api/docs` (Swagger UI) — **주의**: `pnpm dev`는 tsx를 써서 decorator metadata를 emit하지 않아 Swagger 문서 생성이 실패할 수 있다. 그 경우 콘솔에 경고만 찍고 서버는 정상 동작. Swagger UI가 필요하면 `pnpm --filter @poomgeul/api build && node apps/api/dist/main.js`로 띄운다.
+
+라우팅 규약: 도메인 라우트는 모두 `/api/*` 프리픽스를 받는다(예: `/api/sources/license`). 운영/프로브용 `/healthz`만 프리픽스 바깥이다. 웹 `/api/*` rewrite도 이 경계를 그대로 통과시킨다.
 
 ## 디렉터리 구조 (현재)
 
@@ -120,11 +124,12 @@ pnpm test          # 각 워크스페이스 jest (--passWithNoTests) / web은 pl
 ## OpenAPI → TS codegen
 
 - API는 `@nestjs/swagger`로 `/api/docs` (UI) + `/api/docs-json` (스펙) 노출.
-- 프론트 타입 공유:
+- **dev에서는 tsx 제약으로 Swagger 문서 생성이 실패**한다(경고 후 스킵). codegen은 빌드된 번들로 띄운 뒤 실행한다:
   ```bash
-  # API가 떠 있는 상태에서
-  pnpm --filter @poomgeul/types generate
-  # packages/types/src/openapi.d.ts에 타입 생성
+  pnpm --filter @poomgeul/api build
+  node apps/api/dist/main.js &            # :3000에서 docs 포함 부팅
+  pnpm --filter @poomgeul/types generate  # packages/types/src/openapi.d.ts 생성
+  kill %1                                 # API 종료
   ```
 - 프론트(`apps/web`)는 이 공용 타입을 import. **수동 타입 작성 금지**.
 
