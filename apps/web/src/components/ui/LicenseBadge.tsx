@@ -7,6 +7,8 @@ export type LicenseKind =
   | "CC-BY-SA"
   | "PD"
   | "CC-BY-ND"
+  | "CC-BY-NC"
+  | "CC-BY-NC-SA"
   | "CC-BY-NC-ND";
 
 const LABEL: Record<LicenseKind, string> = {
@@ -14,6 +16,8 @@ const LABEL: Record<LicenseKind, string> = {
   "CC-BY-SA": "CC BY-SA",
   PD: "Public Domain",
   "CC-BY-ND": "CC BY-ND",
+  "CC-BY-NC": "CC BY-NC",
+  "CC-BY-NC-SA": "CC BY-NC-SA",
   "CC-BY-NC-ND": "CC BY-NC-ND",
 };
 
@@ -26,6 +30,8 @@ function variantClass(kind: LicenseKind): string {
     case "PD":
       return styles["license-pd"]!;
     case "CC-BY-ND":
+    case "CC-BY-NC":
+    case "CC-BY-NC-SA":
     case "CC-BY-NC-ND":
       return styles["license-blocked"]!;
   }

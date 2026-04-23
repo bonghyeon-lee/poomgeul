@@ -62,6 +62,7 @@ describe("normalizeLicenseUrl", () => {
     ["http://creativecommons.org/licenses/by-nd/4.0/", "CC-BY-ND"],
     ["https://creativecommons.org/licenses/by-nc-nd/4.0/", "CC-BY-NC-ND"],
     ["https://creativecommons.org/licenses/by-nc/4.0/", "CC-BY-NC"],
+    ["http://creativecommons.org/licenses/by-nc-sa/4.0/", "CC-BY-NC-SA"],
     ["https://creativecommons.org/publicdomain/zero/1.0/", "PD"],
   ])("maps %s → %s", (url, expected) => {
     expect(normalizeLicenseUrl(url)).toBe(expected);
@@ -102,11 +103,46 @@ describe("ArxivClient.fetchMetadata", () => {
     expect(normalizeLicenseUrl(meta.licenseUrl)).toBe("CC-BY-SA");
   });
 
-  it("returns licenseUrl=null when the entry has no license link (arXiv default)", async () => {
+  it("returns licenseUrl=null when neither Atom nor abs HTML has a license link", async () => {
     mockFetchOnce(ATOM_NO_LICENSE);
     const meta = await new ArxivClient().fetchMetadata("2504.20451");
     expect(meta.licenseUrl).toBeNull();
     expect(meta.authors).toEqual(["Daniel Lee", "Harsh Sharma"]);
+  });
+
+  it("falls back to abs HTML when Atom has no license link (observed: 2604.00030)", async () => {
+    // 1st fetch → Atom 없는 license, 2nd fetch → abs HTML with abs-license div.
+    const absHtml = `<html><body>
+      <div class="abs-license"><a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" title="Rights to this article" class="has_license">view license</a></div>
+      </body></html>`;
+    let call = 0;
+    globalThis.fetch = jest.fn(async () => {
+      call += 1;
+      const body = call === 1 ? ATOM_NO_LICENSE : absHtml;
+      return {
+        ok: true,
+        status: 200,
+        text: async () => body,
+      } as Response;
+    });
+    const meta = await new ArxivClient().fetchMetadata("2604.00030");
+    expect(meta.licenseUrl).toBe("http://creativecommons.org/licenses/by-nc-sa/4.0/");
+    expect(call).toBe(2);
+  });
+
+  it("still returns null when abs HTML also lacks abs-license", async () => {
+    const absHtml = "<html><body><h1>paper</h1></body></html>";
+    let call = 0;
+    globalThis.fetch = jest.fn(async () => {
+      call += 1;
+      return {
+        ok: true,
+        status: 200,
+        text: async () => (call === 1 ? ATOM_NO_LICENSE : absHtml),
+      } as Response;
+    });
+    const meta = await new ArxivClient().fetchMetadata("2504.20451");
+    expect(meta.licenseUrl).toBeNull();
   });
 
   it("throws ArxivNotFoundError on 404", async () => {

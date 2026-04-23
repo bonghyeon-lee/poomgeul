@@ -142,11 +142,49 @@ export class ArxivClient {
       throw new ArxivNotFoundError(bareId);
     }
 
+    // Query API가 모든 논문에 license link를 싣지 않는다(관측된 누락 사례: 2604.00030
+    // CC BY-NC-SA). null이면 abs HTML 페이지에서 한 번 더 찾아본다 — 여기 실패는
+    // 치명적이지 않으므로 null 유지로 fallback.
+    if (metadata.licenseUrl === null) {
+      const htmlLicense = await this.tryFetchLicenseFromAbs(bareId);
+      if (htmlLicense) {
+        metadata.licenseUrl = htmlLicense;
+      }
+    }
+
     this.logger.log(
       `arxiv:${bareId} · version=${metadata.version} · license=${metadata.licenseUrl ?? "(arxiv-default)"}`,
     );
 
     return metadata;
+  }
+
+  /**
+   * abs 페이지의 `<div class="abs-license"><a href="...">...</a></div>` 한 줄에서
+   * 라이선스 URL을 뽑는다. Query API가 null을 돌려줄 때만 호출.
+   * 네트워크/파싱 실패는 null로 삼켜 상위가 기존 fallback(arxiv-default)을 그대로 쓰게 한다.
+   */
+  private async tryFetchLicenseFromAbs(bareId: string): Promise<string | null> {
+    const url = `https://arxiv.org/abs/${encodeURIComponent(bareId)}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { accept: "text/html" },
+        signal: controller.signal,
+      });
+      if (!res.ok) return null;
+      const html = await res.text();
+      const match = html.match(
+        /<div[^>]*class="[^"]*abs-license[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"/i,
+      );
+      return match?.[1] ?? null;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 }
 
@@ -165,8 +203,9 @@ export type NormalizedLicense =
   | "CC-BY"
   | "CC-BY-SA"
   | "CC-BY-ND"
-  | "CC-BY-NC-ND"
   | "CC-BY-NC"
+  | "CC-BY-NC-SA"
+  | "CC-BY-NC-ND"
   | "PD";
 
 export function normalizeLicenseUrl(url: string | null): NormalizedLicense | null {
@@ -174,10 +213,11 @@ export function normalizeLicenseUrl(url: string | null): NormalizedLicense | nul
   const u = url.toLowerCase();
   if (!u.includes("creativecommons.org")) return null;
   if (u.includes("/publicdomain/")) return "PD";
+  // 접두가 겹치므로 더 구체적인 쪽을 먼저 매칭해야 한다.
   if (u.includes("/by-nc-nd/")) return "CC-BY-NC-ND";
-  if (u.includes("/by-nd/")) return "CC-BY-ND";
-  if (u.includes("/by-nc-sa/")) return "CC-BY-NC";
+  if (u.includes("/by-nc-sa/")) return "CC-BY-NC-SA";
   if (u.includes("/by-nc/")) return "CC-BY-NC";
+  if (u.includes("/by-nd/")) return "CC-BY-ND";
   if (u.includes("/by-sa/")) return "CC-BY-SA";
   if (u.includes("/by/")) return "CC-BY";
   return null;

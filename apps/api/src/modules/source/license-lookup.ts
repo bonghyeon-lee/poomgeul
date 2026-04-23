@@ -22,7 +22,7 @@ import type { ParsedSource } from "./input.js";
 import { SourceRepository } from "./source.repository.js";
 
 export type AllowedLicense = "CC-BY" | "CC-BY-SA" | "PD";
-export type BlockedLicense = "CC-BY-ND" | "CC-BY-NC-ND" | "CC-BY-NC";
+export type BlockedLicense = "CC-BY-ND" | "CC-BY-NC-ND" | "CC-BY-NC" | "CC-BY-NC-SA";
 
 export type LicenseLookupResult =
   | {
@@ -116,8 +116,7 @@ export class LicenseLookupService {
         outcome: "blocked",
         license: kind,
         title: metadata.title,
-        reason:
-          "파생물 제작을 금지하거나 비상업 조건이 붙은 라이선스라 번역본을 등록할 수 없다. policy/licensing.md 참조.",
+        reason: blockedReasonFor(kind),
       };
     }
 
@@ -146,5 +145,16 @@ export class LicenseLookupService {
       alreadyRegistered: Boolean(registeredSlug),
       ...(registeredSlug ? { registeredSlug } : {}),
     };
+  }
+}
+
+function blockedReasonFor(kind: BlockedLicense): string {
+  switch (kind) {
+    case "CC-BY-ND":
+    case "CC-BY-NC-ND":
+      return "파생물 제작(ND)을 금지하는 라이선스라 번역본을 등록할 수 없다. policy/licensing.md 참조.";
+    case "CC-BY-NC":
+    case "CC-BY-NC-SA":
+      return "비상업(NC) 조건이 붙은 라이선스는 M0에선 단계적 허용 검토 중이라 등록할 수 없다. policy/licensing.md 참조.";
   }
 }

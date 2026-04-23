@@ -118,7 +118,7 @@ describe("LicenseLookupService.lookup", () => {
     expect((result as { registeredSlug?: string }).registeredSlug).toBeUndefined();
   });
 
-  it("blocks CC BY-ND", async () => {
+  it("blocks CC BY-ND with an ND-specific reason", async () => {
     const client = stubClient(async () =>
       fixture({
         licenseUrl: "https://creativecommons.org/licenses/by-nd/4.0/",
@@ -128,6 +128,24 @@ describe("LicenseLookupService.lookup", () => {
       parseSourceInput("2310.12345"),
     );
     expect(result).toMatchObject({ outcome: "blocked", license: "CC-BY-ND" });
+    if (result.outcome !== "blocked") throw new Error("expected blocked");
+    expect(result.reason).toMatch(/파생물/);
+  });
+
+  it("blocks CC BY-NC-SA with an NC-specific reason (observed: 2604.00030)", async () => {
+    const client = stubClient(async () =>
+      fixture({
+        bareId: "2604.00030",
+        licenseUrl: "http://creativecommons.org/licenses/by-nc-sa/4.0/",
+        title: "Building an analog simulator...",
+      }),
+    );
+    const result = await new LicenseLookupService(client, stubRepo()).lookup(
+      parseSourceInput("2604.00030"),
+    );
+    expect(result).toMatchObject({ outcome: "blocked", license: "CC-BY-NC-SA" });
+    if (result.outcome !== "blocked") throw new Error("expected blocked");
+    expect(result.reason).toMatch(/비상업/);
   });
 
   it("blocks arXiv default (no CC license link)", async () => {
