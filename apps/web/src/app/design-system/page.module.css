@@ -1,0 +1,316 @@
+.shell {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-5) var(--space-9);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--space-5);
+}
+
+.headerTitle {
+  font-family: var(--font-serif);
+  font-size: var(--fs-48);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: 400;
+  color: var(--color-fg);
+  margin: 0;
+}
+
+.headerLead {
+  font-size: var(--fs-16);
+  line-height: var(--lh-relaxed);
+  color: var(--color-fg-muted);
+  max-width: var(--measure-ko-body);
+  word-break: keep-all;
+  margin: 0;
+}
+
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--color-fg-muted);
+}
+
+.toc a {
+  color: var(--color-fg-muted);
+}
+
+.toc a:hover {
+  color: var(--color-brand-hover);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  scroll-margin-top: var(--space-5);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-5);
+}
+
+.sectionTitle {
+  font-size: var(--fs-22);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-snug);
+  margin: 0;
+}
+
+.sectionHint {
+  font-size: var(--fs-12);
+  color: var(--color-fg-subtle);
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-wide);
+}
+
+.swatchGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-3);
+}
+
+.swatch {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface-raised);
+  display: flex;
+  flex-direction: column;
+}
+
+.swatchColor {
+  height: 72px;
+  border-bottom: 1px solid var(--border);
+}
+
+.swatchMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+}
+
+.swatchName {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--color-fg);
+}
+
+.swatchHex {
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  color: var(--color-fg-subtle);
+  letter-spacing: var(--tracking-wide);
+}
+
+.typeStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.typeRow {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: var(--space-4);
+  align-items: baseline;
+  border-bottom: 1px dashed var(--border-muted);
+  padding-bottom: var(--space-4);
+}
+
+.typeRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.typeMeta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--color-fg-subtle);
+  letter-spacing: var(--tracking-wide);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.typeSample {
+  color: var(--color-fg);
+}
+
+.typeSampleDisplay {
+  font-family: var(--font-serif);
+  font-size: var(--fs-48);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-tight);
+  font-variation-settings: "opsz" 48;
+}
+
+.typeSampleH1 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-36);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tracking-snug);
+  font-weight: var(--fw-semibold);
+}
+
+.typeSampleH2 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-30);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tracking-snug);
+  font-weight: var(--fw-semibold);
+}
+
+.typeSampleBody {
+  font-family: var(--font-sans);
+  font-size: var(--fs-15);
+  line-height: var(--lh-normal);
+}
+
+.typeSampleReadKo {
+  font-family: var(--font-serif-ko);
+  font-size: var(--fs-18);
+  line-height: var(--lh-loose);
+  word-break: keep-all;
+}
+
+.typeSampleReadEn {
+  font-family: var(--font-serif);
+  font-size: var(--fs-18);
+  line-height: var(--lh-relaxed);
+}
+
+.typeSampleMono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-14);
+  background: var(--paper-200);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  display: inline-block;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.rowLabel {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--color-fg-subtle);
+  letter-spacing: var(--tracking-wide);
+  min-width: 80px;
+}
+
+.logoBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.logoBlockInverse {
+  background: var(--ink-900);
+}
+
+.logoCaption {
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-fg-subtle);
+}
+
+.logoCaptionInverse {
+  color: var(--ink-300);
+}
+
+.radiusGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-3);
+}
+
+.radiusTile {
+  aspect-ratio: 1.4 / 1;
+  border: 1px solid var(--border);
+  background: var(--color-surface-raised);
+  display: flex;
+  align-items: flex-end;
+  padding: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  color: var(--color-fg-subtle);
+}
+
+.spacingRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.spacingItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--color-fg-subtle);
+}
+
+.spacingBar {
+  height: 10px;
+  background: var(--color-brand);
+  border-radius: var(--radius-xs);
+}
+
+.donts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--fs-14);
+  color: var(--color-fg-muted);
+}
+
+.donts li {
+  line-height: var(--lh-relaxed);
+  word-break: keep-all;
+}
+
+.donts code {
+  font-size: 0.92em;
+}
