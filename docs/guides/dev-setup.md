@@ -168,6 +168,7 @@ pnpm test          # 각 워크스페이스 jest (--passWithNoTests) / web은 pl
 - **`mise WARN No version is set for shim: node`** — `mise trust` 한 번 실행.
 - **docker compose 포트 미노출** — `docker compose ps`에 `0.0.0.0:5432->5432/tcp` 매핑이 안 보이면 `docker compose down && docker compose up -d postgres`로 재생성.
 - **VS Code에서 `*.spec.ts`가 `Cannot find name 'describe'`** — TS Server가 다른 프로젝트를 골랐을 가능성. `apps/api/tsconfig.json`은 solution(빌드 + 테스트 두 reference)으로 구성되어 있으므로, 명령 팔레트 → "TypeScript: Restart TS server" 실행. 그래도 안 되면 동일 명령에서 "Select TypeScript Version" → workspace 버전 선택.
+- **web dev가 `Cannot find module './NNN.js'`로 죽을 때** — `.next` 캐시 부정합. `next dev`가 죽었다 살아나거나 `next build`와 dev가 섞이면 manifest가 이전 청크 해시를 참조하는데 파일은 새 해시로 재생성된 상태. 복구: `rm -rf apps/web/.next && pnpm --filter @poomgeul/web dev`. 기본 dev는 turbopack(`next dev --turbo`)으로 돌려 이 클래스의 버그를 피한다. webpack 쪽이 필요하면 `pnpm --filter @poomgeul/web run dev:webpack`.
 
 ## CI
 
