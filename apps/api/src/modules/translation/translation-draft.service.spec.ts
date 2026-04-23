@@ -5,10 +5,7 @@ import {
   GeminiTranslationProvider,
   TranslationProviderError,
 } from "./gemini-provider.js";
-import {
-  TranslationDraftService,
-  type SegmentInput,
-} from "./translation-draft.service.js";
+import { TranslationDraftService, type SegmentInput } from "./translation-draft.service.js";
 
 function segs(...items: Array<Partial<SegmentInput>>): SegmentInput[] {
   return items.map((p, i) => ({
@@ -139,11 +136,7 @@ describe("TranslationDraftService.draftAll (batch chunks)", () => {
       rateLimitRetryDelayMs: 0,
     });
     const result = await svc.draftAll(
-      segs(
-        { originalText: "a" },
-        { originalText: "b (will fail)" },
-        { originalText: "c" },
-      ),
+      segs({ originalText: "a" }, { originalText: "b (will fail)" }, { originalText: "c" }),
     );
     expect(batchCalls).toBeGreaterThanOrEqual(1);
     expect(singleCalls).toBe(3);

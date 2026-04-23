@@ -24,11 +24,7 @@ type AsAnchor = CommonProps &
 
 export type ButtonProps = AsButton | AsAnchor;
 
-function buildClassName(
-  variant: ButtonVariant,
-  size: ButtonSize,
-  extra?: string,
-): string {
+function buildClassName(variant: ButtonVariant, size: ButtonSize, extra?: string): string {
   return [styles.btn, styles[variant], styles[size], extra].filter(Boolean).join(" ");
 }
 

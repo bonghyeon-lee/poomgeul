@@ -34,7 +34,8 @@ export class Ar5ivFetcher {
 
   constructor(options?: { endpoint?: string; timeoutMs?: number }) {
     this.endpoint = options?.endpoint ?? process.env.AR5IV_ENDPOINT ?? DEFAULT_ENDPOINT;
-    this.timeoutMs = options?.timeoutMs ?? Number(process.env.AR5IV_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
+    this.timeoutMs =
+      options?.timeoutMs ?? Number(process.env.AR5IV_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
   }
 
   async fetchHtml(bareId: string): Promise<string> {
@@ -75,10 +76,7 @@ export class Ar5ivFetcher {
     } catch (err) {
       if (err instanceof Ar5ivNotFoundError) throw err;
       // new URL 실패 같은 경우는 네트워크 에러로.
-      throw new Ar5ivUpstreamError(
-        `ar5iv response had unparseable URL ${res.url}`,
-        err,
-      );
+      throw new Ar5ivUpstreamError(`ar5iv response had unparseable URL ${res.url}`, err);
     }
 
     if (!res.ok) {

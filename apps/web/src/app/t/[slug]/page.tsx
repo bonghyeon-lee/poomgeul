@@ -52,11 +52,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function ReaderPage({
-  params,
-}: {
-  params: Promise<RouteParams>;
-}) {
+export default async function ReaderPage({ params }: { params: Promise<RouteParams> }) {
   const { slug } = await params;
   const bundle = await resolveBundle(slug);
   if (!bundle) {
@@ -167,7 +163,9 @@ export default async function ReaderPage({
         <section>
           <div className={styles.sectionHeader}>
             <h2>본문</h2>
-            <span className={styles.sectionHeaderHint}>원문 · 번역 병렬 · 세그먼트 {bodySegments.length}개</span>
+            <span className={styles.sectionHeaderHint}>
+              원문 · 번역 병렬 · 세그먼트 {bodySegments.length}개
+            </span>
           </div>
           <div className={styles.bodyColumn}>
             {bodySegments.map((seg) => {
@@ -217,7 +215,10 @@ export default async function ReaderPage({
               {proposals.map((p) => (
                 <div key={p.proposalId} className={styles.proposalRow}>
                   <span className={styles.proposalId}>#{p.proposalId}</span>
-                  <a href={`#seg-${segments.find((s) => s.segmentId === p.segmentId)?.order ?? ""}`} className={styles.proposalSeg}>
+                  <a
+                    href={`#seg-${segments.find((s) => s.segmentId === p.segmentId)?.order ?? ""}`}
+                    className={styles.proposalSeg}
+                  >
                     {p.segmentId}
                   </a>
                   <Chip status={p.status}>{p.status}</Chip>
@@ -233,11 +234,7 @@ export default async function ReaderPage({
             <h2>출처와 기여자</h2>
             <span className={styles.sectionHeaderHint}>CC BY / CC BY-SA / PD</span>
           </div>
-          <AttributionBlock
-            source={source}
-            translation={translation}
-            contributors={contributors}
-          />
+          <AttributionBlock source={source} translation={translation} contributors={contributors} />
         </section>
       </main>
     </div>
@@ -272,10 +269,10 @@ function PendingSegmentsView({ slug }: { slug: string }) {
             <h2>무슨 일이 일어났나</h2>
           </div>
           <p className={styles.notice}>
-            번역본 데이터는 생성되었으나 원문 세그먼트 분할과 AI 초벌 번역이 아직 진행되지 않았습니다.
-            등록 당시에 파서 또는 LLM 오류가 있었거나, 호출이 실패했거나, 잘못된 슬러그로 접속한 경우일 수 있습니다.
-            arXiv 원문이라면 아래 버튼으로 ar5iv에서 다시 가져와 Gemini 초벌까지 다시 생성할 수 있습니다.
-            분량에 따라 다소 시간이 소요될 수 있습니다.
+            번역본 데이터는 생성되었으나 원문 세그먼트 분할과 AI 초벌 번역이 아직 진행되지
+            않았습니다. 등록 당시에 파서 또는 LLM 오류가 있었거나, 호출이 실패했거나, 잘못된
+            슬러그로 접속한 경우일 수 있습니다. arXiv 원문이라면 아래 버튼으로 ar5iv에서 다시 가져와
+            Gemini 초벌까지 다시 생성할 수 있습니다. 분량에 따라 다소 시간이 소요될 수 있습니다.
           </p>
           <div className={styles.reprocessWrap}>
             <ReprocessButton slug={slug} />

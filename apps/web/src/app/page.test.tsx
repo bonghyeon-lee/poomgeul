@@ -6,7 +6,7 @@ import Home from "./page.js";
 describe("Home (landing)", () => {
   it("shows the project name in an h1", () => {
     render(<Home />);
-    expect(screen.getByRole("heading", { level: 1, name: /함께 번역한다/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /함께 번역합니다/ })).toBeInTheDocument();
   });
 
   it("links to the API docs", () => {

@@ -1,4 +1,9 @@
-import { ArxivClient, ArxivNotFoundError, ArxivUpstreamError, normalizeLicenseUrl } from "./arxiv-client.js";
+import {
+  ArxivClient,
+  ArxivNotFoundError,
+  ArxivUpstreamError,
+  normalizeLicenseUrl,
+} from "./arxiv-client.js";
 
 // Atom 샘플은 실제 arXiv Query API 응답에서 발췌·축약했다. entry 하나짜리 형태가
 // 우리 사용 패턴(id_list=하나) 전부이므로 이 셋이 충분하다.
@@ -181,8 +186,8 @@ describe("ArxivClient.fetchMetadata", () => {
       err.name = "AbortError";
       throw err;
     });
-    await expect(
-      new ArxivClient({ timeoutMs: 1 }).fetchMetadata("2310.12345"),
-    ).rejects.toThrow(/timed out/);
+    await expect(new ArxivClient({ timeoutMs: 1 }).fetchMetadata("2310.12345")).rejects.toThrow(
+      /timed out/,
+    );
   });
 });

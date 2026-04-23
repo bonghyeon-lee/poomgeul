@@ -27,11 +27,7 @@ import {
 } from "@poomgeul/db";
 
 import { TranslationDraftService } from "../translation/translation-draft.service.js";
-import {
-  Ar5ivNotFoundError,
-  Ar5ivUpstreamError,
-  type Ar5ivFetcher,
-} from "./ar5iv-fetcher.js";
+import { Ar5ivNotFoundError, Ar5ivUpstreamError, type Ar5ivFetcher } from "./ar5iv-fetcher.js";
 import type { ArxivId } from "./input.js";
 import type { AllowedLicense, LicenseLookupResult } from "./license-lookup.js";
 import { LicenseLookupService } from "./license-lookup.js";
@@ -184,9 +180,7 @@ export class SourceService {
       parsedSegments = parseAr5ivHtml(html);
       if (parsedSegments.length === 0) {
         segmentationStatus = "skipped";
-        this.logger.warn(
-          `ar5iv returned HTML for ${parsed.bareId} but parser produced 0 segments`,
-        );
+        this.logger.warn(`ar5iv returned HTML for ${parsed.bareId} but parser produced 0 segments`);
       }
     } catch (err) {
       if (err instanceof Ar5ivNotFoundError) {
@@ -245,15 +239,12 @@ export class SourceService {
           originalText: s.text,
           kind: s.kind,
         }));
-        const inserted = await tx
-          .insert(segments)
-          .values(values)
-          .returning({
-            segmentId: segments.segmentId,
-            order: segments.order,
-            kind: segments.kind,
-            originalText: segments.originalText,
-          });
+        const inserted = await tx.insert(segments).values(values).returning({
+          segmentId: segments.segmentId,
+          order: segments.order,
+          kind: segments.kind,
+          originalText: segments.originalText,
+        });
         segmentRows = inserted;
       }
       return { source, segmentRows };
@@ -281,10 +272,7 @@ export class SourceService {
         })
         .from(translations)
         .where(
-          and(
-            eq(translations.sourceId, stage1.source.sourceId),
-            eq(translations.targetLang, "ko"),
-          ),
+          and(eq(translations.sourceId, stage1.source.sourceId), eq(translations.targetLang, "ko")),
         )
         .limit(1);
 
@@ -427,15 +415,12 @@ export class SourceService {
           originalText: s.text,
           kind: s.kind,
         }));
-        const inserted = await tx
-          .insert(segments)
-          .values(values)
-          .returning({
-            segmentId: segments.segmentId,
-            order: segments.order,
-            kind: segments.kind,
-            originalText: segments.originalText,
-          });
+        const inserted = await tx.insert(segments).values(values).returning({
+          segmentId: segments.segmentId,
+          order: segments.order,
+          kind: segments.kind,
+          originalText: segments.originalText,
+        });
         segmentRows = inserted;
       }
       return segmentRows;
@@ -522,9 +507,7 @@ export class SourceService {
       .innerJoin(segments, eq(segments.segmentId, translationSegments.segmentId))
       .where(eq(translationSegments.translationId, tr.translationId));
 
-    const failed = candidates.filter(
-      (r) => r.aiDraftText === null && r.kind !== "reference",
-    );
+    const failed = candidates.filter((r) => r.aiDraftText === null && r.kind !== "reference");
     if (failed.length === 0) {
       return { outcome: "nothing-to-retry", translationId: tr.translationId, slug: tr.slug };
     }

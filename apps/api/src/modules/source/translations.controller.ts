@@ -13,11 +13,7 @@ import {
   type ReaderBundleRow,
   type TranslationListItem,
 } from "./source.repository.js";
-import {
-  SourceService,
-  type ReprocessResult,
-  type RetryFailedResult,
-} from "./source.service.js";
+import { SourceService, type ReprocessResult, type RetryFailedResult } from "./source.service.js";
 
 @ApiTags("translation")
 @Controller("translations")

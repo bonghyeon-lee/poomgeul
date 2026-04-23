@@ -84,8 +84,7 @@ export class TranslationDraftService {
     this.retryDelayMs = options?.rateLimitRetryDelayMs ?? RATE_LIMIT_RETRY_DELAY_MS;
     this.minCallIntervalMs = options?.minCallIntervalMs ?? DEFAULT_MIN_CALL_INTERVAL_MS;
     this.chunkSize = Math.max(1, options?.chunkSize ?? DEFAULT_CHUNK_SIZE);
-    this.unavailableBackoffMs =
-      options?.unavailableBackoffMs ?? DEFAULT_UNAVAILABLE_BACKOFF_MS;
+    this.unavailableBackoffMs = options?.unavailableBackoffMs ?? DEFAULT_UNAVAILABLE_BACKOFF_MS;
   }
 
   async draftAll(segments: SegmentInput[]): Promise<DraftAllResult> {
@@ -230,14 +229,10 @@ export class TranslationDraftService {
             );
           } else if (singleOutcome.kind === "permanent") {
             permanentErr = true;
-            this.logger.warn(
-              `permanent error on single fallback at order=${seg.order}; aborting`,
-            );
+            this.logger.warn(`permanent error on single fallback at order=${seg.order}; aborting`);
           } else if (singleOutcome.kind === "service-unavailable") {
             serviceUnavailable = true;
-            this.logger.warn(
-              `503 UNAVAILABLE on single fallback at order=${seg.order}; aborting`,
-            );
+            this.logger.warn(`503 UNAVAILABLE on single fallback at order=${seg.order}; aborting`);
           } else {
             this.logger.warn(
               `single-fallback failed for order=${seg.order}: ${singleOutcome.message}`,

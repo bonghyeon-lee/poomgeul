@@ -1,9 +1,6 @@
 import { Ar5ivFetcher, Ar5ivNotFoundError, Ar5ivUpstreamError } from "./ar5iv-fetcher.js";
 
-function mockFetchOnce(
-  body: string,
-  init: Partial<Response> & { finalUrl?: string } = {},
-): void {
+function mockFetchOnce(body: string, init: Partial<Response> & { finalUrl?: string } = {}): void {
   globalThis.fetch = jest.fn(async () => {
     const status = init.status ?? 200;
     return {
@@ -40,9 +37,9 @@ describe("Ar5ivFetcher.fetchHtml", () => {
       status: 200,
       finalUrl: "https://arxiv.org/abs/2604.00295",
     });
-    await expect(
-      new Ar5ivFetcher().fetchHtml("2604.00295"),
-    ).rejects.toBeInstanceOf(Ar5ivNotFoundError);
+    await expect(new Ar5ivFetcher().fetchHtml("2604.00295")).rejects.toBeInstanceOf(
+      Ar5ivNotFoundError,
+    );
   });
 
   it("throws Ar5ivUpstreamError on 5xx", async () => {
@@ -67,8 +64,8 @@ describe("Ar5ivFetcher.fetchHtml", () => {
       err.name = "AbortError";
       throw err;
     });
-    await expect(
-      new Ar5ivFetcher({ timeoutMs: 1 }).fetchHtml("2310.12345"),
-    ).rejects.toThrow(/timed out/);
+    await expect(new Ar5ivFetcher({ timeoutMs: 1 }).fetchHtml("2310.12345")).rejects.toThrow(
+      /timed out/,
+    );
   });
 });

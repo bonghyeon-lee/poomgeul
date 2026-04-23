@@ -75,7 +75,12 @@ describe("SourceService.createFromArxiv (integration)", () => {
       });
       const repo = new SourceRepository(db);
       const lookup = new LicenseLookupService(client, repo);
-      const service = new SourceService(db, lookup, stubAr5ivWithHtml(MINIMAL_AR5IV), stubDraftSkipped());
+      const service = new SourceService(
+        db,
+        lookup,
+        stubAr5ivWithHtml(MINIMAL_AR5IV),
+        stubDraftSkipped(),
+      );
 
       const result = await service.createFromArxiv(arxivParsed("2504.20451"));
       expect(result.outcome).toBe("created");
@@ -84,10 +89,7 @@ describe("SourceService.createFromArxiv (integration)", () => {
       expect(result.segmentCount).toBeGreaterThan(0);
 
       // source row inserted
-      const srcRows = await db
-        .select()
-        .from(sources)
-        .where(eq(sources.sourceId, result.sourceId));
+      const srcRows = await db.select().from(sources).where(eq(sources.sourceId, result.sourceId));
       expect(srcRows).toHaveLength(1);
       expect(srcRows[0]).toMatchObject({
         title: "Adaptive Calibration under Distribution Shift",
@@ -147,10 +149,16 @@ describe("SourceService.createFromArxiv (integration)", () => {
       expect(result.segmentationStatus).toBe("skipped");
       expect(result.segmentCount).toBe(0);
 
-      const segRows = await db.select().from(segments).where(eq(segments.sourceId, result.sourceId));
+      const segRows = await db
+        .select()
+        .from(segments)
+        .where(eq(segments.sourceId, result.sourceId));
       expect(segRows).toHaveLength(0);
 
-      const trRows = await db.select().from(translations).where(eq(translations.translationId, result.translationId));
+      const trRows = await db
+        .select()
+        .from(translations)
+        .where(eq(translations.translationId, result.translationId));
       expect(trRows).toHaveLength(1);
     });
   });

@@ -1,8 +1,6 @@
 import { GeminiTranslationProvider, TranslationProviderError } from "./gemini-provider.js";
 
-function mockFetch(
-  responses: Array<{ status?: number; body: unknown } | Error>,
-): void {
+function mockFetch(responses: Array<{ status?: number; body: unknown } | Error>): void {
   let i = 0;
   globalThis.fetch = jest.fn(async () => {
     const r = responses[i++];
@@ -12,10 +10,8 @@ function mockFetch(
     return {
       ok: status >= 200 && status < 300,
       status,
-      text: async () =>
-        typeof r.body === "string" ? r.body : JSON.stringify(r.body),
-      json: async () =>
-        typeof r.body === "string" ? JSON.parse(r.body) : r.body,
+      text: async () => (typeof r.body === "string" ? r.body : JSON.stringify(r.body)),
+      json: async () => (typeof r.body === "string" ? JSON.parse(r.body) : r.body),
     } as Response;
   });
 }
@@ -42,9 +38,7 @@ describe("GeminiTranslationProvider", () => {
     mockFetch([
       {
         body: {
-          candidates: [
-            { content: { parts: [{ text: "안녕하세요." }] }, finishReason: "STOP" },
-          ],
+          candidates: [{ content: { parts: [{ text: "안녕하세요." }] }, finishReason: "STOP" }],
           usageMetadata: {
             promptTokenCount: 12,
             candidatesTokenCount: 7,

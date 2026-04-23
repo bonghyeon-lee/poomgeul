@@ -100,8 +100,5 @@ export function parseSourceInput(raw: string): ParsedSource {
   const bareDoi = parseBareDoi(withoutDoiPrefix);
   if (bareDoi) return bareDoi;
 
-  throw new SourceInputError(
-    "unsupported",
-    `unsupported source input: ${JSON.stringify(trimmed)}`,
-  );
+  throw new SourceInputError("unsupported", `unsupported source input: ${JSON.stringify(trimmed)}`);
 }

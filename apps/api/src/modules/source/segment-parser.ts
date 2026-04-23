@@ -100,7 +100,9 @@ export function parseAr5ivHtml(html: string, options: ParseOptions = {}): Parsed
 
   // 8. bibliography — li.ltx_bibitem 각각이 reference.
   if (bibInner) {
-    const items = bibInner.matchAll(/<li[^>]*class="[^"]*ltx_bibitem[^"]*"[^>]*>([\s\S]*?)<\/li>/gi);
+    const items = bibInner.matchAll(
+      /<li[^>]*class="[^"]*ltx_bibitem[^"]*"[^>]*>([\s\S]*?)<\/li>/gi,
+    );
     for (const m of items) {
       const text = collapseWhitespace(stripTags(m[1]!));
       if (text.length < minChars) continue;
@@ -109,8 +111,7 @@ export function parseAr5ivHtml(html: string, options: ParseOptions = {}): Parsed
   }
 
   // 9. 각주 — span.ltx_note.ltx_role_footnote (ar5iv은 note_content 내부에 실제 텍스트).
-  const footnoteRegex =
-    /<span[^>]*class="[^"]*ltx_note_content[^"]*"[^>]*>([\s\S]*?)<\/span>/gi;
+  const footnoteRegex = /<span[^>]*class="[^"]*ltx_note_content[^"]*"[^>]*>([\s\S]*?)<\/span>/gi;
   for (const m of cleaned.matchAll(footnoteRegex)) {
     const text = collapseWhitespace(stripTags(m[1]!));
     if (text.length < minChars) continue;
@@ -217,9 +218,7 @@ export function splitSentences(text: string): string[] {
     const peekIsBoundary =
       endOfText ||
       (peekIsSpace &&
-        (afterNext === undefined ||
-          /[A-Z0-9§⟦"'“‘[]/.test(afterNext) ||
-          afterNext === " "));
+        (afterNext === undefined || /[A-Z0-9§⟦"'“‘[]/.test(afterNext) || afterNext === " "));
 
     if (!peekIsBoundary) continue;
 

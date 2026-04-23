@@ -28,7 +28,8 @@ describe("splitSentences", () => {
   });
 
   it("keeps 'Author et al. (YEAR)' as one sentence (no split at the paren)", () => {
-    const text = "However, recent work from Hoffmann et al. (2022) shows that scaling matters. The next sentence follows.";
+    const text =
+      "However, recent work from Hoffmann et al. (2022) shows that scaling matters. The next sentence follows.";
     expect(splitSentences(text)).toEqual([
       "However, recent work from Hoffmann et al. (2022) shows that scaling matters.",
       "The next sentence follows.",
@@ -36,7 +37,8 @@ describe("splitSentences", () => {
   });
 
   it("keeps 'Name (YEAR)' citation mid-sentence without splitting", () => {
-    const text = "Following Lewkowycz et al. (2022), we remove everything before the first section.";
+    const text =
+      "Following Lewkowycz et al. (2022), we remove everything before the first section.";
     expect(splitSentences(text)).toEqual([
       "Following Lewkowycz et al. (2022), we remove everything before the first section.",
     ]);

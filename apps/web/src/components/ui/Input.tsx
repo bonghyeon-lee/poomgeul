@@ -1,6 +1,11 @@
 "use client";
 
-import { useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
+import {
+  useId,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type TextareaHTMLAttributes,
+} from "react";
 
 import styles from "./Input.module.css";
 
@@ -44,7 +49,11 @@ function LabelRow({
   );
 }
 
-function FieldMeta({ hint, errorMessage, describedBy }: {
+function FieldMeta({
+  hint,
+  errorMessage,
+  describedBy,
+}: {
   hint?: ReactNode;
   errorMessage?: ReactNode;
   describedBy: string;

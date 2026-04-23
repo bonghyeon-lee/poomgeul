@@ -11,12 +11,7 @@ export type TranslationSegmentStatus = "unreviewed" | "approved";
 
 export type TranslationStatus = "draft" | "reviewed" | "featured";
 
-export type ProposalStatus =
-  | "open"
-  | "merged"
-  | "rejected"
-  | "withdrawn"
-  | "stale";
+export type ProposalStatus = "open" | "merged" | "rejected" | "withdrawn" | "stale";
 
 export type Source = {
   sourceId: string;

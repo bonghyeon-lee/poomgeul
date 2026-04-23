@@ -98,7 +98,8 @@
   background: var(--color-surface-raised);
   text-decoration: none;
   color: inherit;
-  transition: border-color var(--dur-1) var(--ease-standard),
+  transition:
+    border-color var(--dur-1) var(--ease-standard),
     background var(--dur-1) var(--ease-standard);
 }
 

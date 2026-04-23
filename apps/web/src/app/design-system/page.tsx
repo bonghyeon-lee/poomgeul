@@ -114,8 +114,8 @@ export default function DesignSystemPage() {
         <h1 className={styles.headerTitle}>품글 디자인 시스템</h1>
         <p className={styles.headerLead}>
           이 페이지는 <code>apps/web/src/app/globals.css</code> 토큰과{" "}
-          <code>apps/web/src/components/ui/</code> 키트의 리빙 데모다. 새 화면을 만들기
-          전에 여기서 가용한 컴포넌트를 확인한다. 원칙과 근거는{" "}
+          <code>apps/web/src/components/ui/</code> 키트의 리빙 데모다. 새 화면을 만들기 전에 여기서
+          가용한 컴포넌트를 확인한다. 원칙과 근거는{" "}
           <a href="https://github.com/bonghyeon-lee/poomgeul/blob/main/docs/design/README.md">
             docs/design/README.md
           </a>
@@ -186,7 +186,9 @@ export default function DesignSystemPage() {
       <section id="type" className={styles.section}>
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>Typography</h2>
-          <span className={styles.sectionHint}>Pretendard · Source Serif 4 · Noto Serif KR · JetBrains Mono</span>
+          <span className={styles.sectionHint}>
+            Pretendard · Source Serif 4 · Noto Serif KR · JetBrains Mono
+          </span>
         </div>
         <div className={styles.typeStack}>
           <div className={styles.typeRow}>
@@ -222,8 +224,8 @@ export default function DesignSystemPage() {
               <span>fs-18 · lh 1.75 · keep-all</span>
             </div>
             <div className={`${styles.typeSample} ${styles.typeSampleReadKo}`}>
-              공개 라이선스가 붙은 학술 문서와 공공 영역의 문학을 한국어로 옮긴다.
-              원문은 위키처럼 공유하고, 번역본은 깃허브처럼 제안하고 머지한다.
+              공개 라이선스가 붙은 학술 문서와 공공 영역의 문학을 한국어로 옮긴다. 원문은 위키처럼
+              공유하고, 번역본은 깃허브처럼 제안하고 머지한다.
             </div>
           </div>
           <div className={styles.typeRow}>
@@ -232,8 +234,8 @@ export default function DesignSystemPage() {
               <span>fs-18 · lh 1.65</span>
             </div>
             <div className={`${styles.typeSample} ${styles.typeSampleReadEn}`}>
-              Open-license scholarly texts and public-domain literature, translated by a
-              community with AI-drafted first passes and human-led review.
+              Open-license scholarly texts and public-domain literature, translated by a community
+              with AI-drafted first passes and human-led review.
             </div>
           </div>
           <div className={styles.typeRow}>
@@ -391,8 +393,8 @@ export default function DesignSystemPage() {
             <CardEyebrow>DEFAULT · 24px</CardEyebrow>
             <CardTitle>세그먼트 #42</CardTitle>
             <CardBody>
-              카드는 헤어라인 1px + 라운드 6px. 그림자 없음. 컬러 세로줄만으로 상태를
-              표시하는 것은 피한다.
+              카드는 헤어라인 1px + 라운드 6px. 그림자 없음. 컬러 세로줄만으로 상태를 표시하는 것은
+              피한다.
             </CardBody>
             <div className={styles.row} style={{ marginTop: "var(--space-2)" }}>
               <Chip status="open">open</Chip>
@@ -409,8 +411,7 @@ export default function DesignSystemPage() {
             <CardEyebrow>EYEBROW · uppercase 0.08em</CardEyebrow>
             <CardTitle>Title — h3 by default</CardTitle>
             <CardBody>
-              <code>as=&quot;h2&quot;</code>로 의미 수준을 바꿀 수 있으나 시각 스케일은
-              동일하다.
+              <code>as=&quot;h2&quot;</code>로 의미 수준을 바꿀 수 있으나 시각 스케일은 동일하다.
             </CardBody>
           </Card>
         </div>

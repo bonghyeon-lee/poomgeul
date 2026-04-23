@@ -46,14 +46,15 @@ export default async function TranslationsListPage() {
         <section className={styles.hero}>
           <h1 className={styles.title}>번역본 목록</h1>
           <p className={styles.lead}>
-            등록된 한국어 번역본입니다. 최근 등록된 것부터 표시됩니다. 각 카드를 눌러 Reader로 이동하세요.
+            등록된 한국어 번역본입니다. 최근 등록된 것부터 표시됩니다. 각 카드를 눌러 Reader로
+            이동하세요.
           </p>
         </section>
 
         {error ? (
           <p className={styles.errorBox}>
-            API에서 목록을 가져오지 못했습니다 — {error}. dev 환경에서는 apps/api가 :3000 포트에서 실행 중이어야
-            합니다. 아래에는 mock 샘플 데이터만 표시됩니다.
+            API에서 목록을 가져오지 못했습니다 — {error}. dev 환경에서는 apps/api가 :3000 포트에서
+            실행 중이어야 합니다. 아래에는 mock 샘플 데이터만 표시됩니다.
           </p>
         ) : null}
 
@@ -109,9 +110,7 @@ export default async function TranslationsListPage() {
 
 function TranslationCard({ item }: { item: TranslationListItem }) {
   const progressPct =
-    item.segmentCount > 0
-      ? Math.round((item.translatedCount / item.segmentCount) * 100)
-      : null;
+    item.segmentCount > 0 ? Math.round((item.translatedCount / item.segmentCount) * 100) : null;
 
   return (
     <Link href={`/t/${item.slug}`} className={styles.card}>
@@ -182,9 +181,8 @@ function mergeWithSample(items: TranslationListItem[]): TranslationListItem[] {
     importedAt: sampleReaderBundle.source.importedAt,
     leadDisplayName: sampleReaderBundle.translation.leadDisplayName,
     segmentCount: sampleReaderBundle.segments.length,
-    translatedCount: sampleReaderBundle.translationSegments.filter(
-      (ts) => ts.aiDraftText !== null,
-    ).length,
+    translatedCount: sampleReaderBundle.translationSegments.filter((ts) => ts.aiDraftText !== null)
+      .length,
     renderable: sampleReaderBundle.segments.length > 0,
   };
   return [...items, sample];

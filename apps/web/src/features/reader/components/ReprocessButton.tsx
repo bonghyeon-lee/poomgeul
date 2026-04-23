@@ -81,7 +81,10 @@ export function ReprocessButton({ slug }: { slug: string }) {
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      setState({ phase: "error", message: `HTTP ${res.status}${text ? `: ${text.slice(0, 200)}` : ""}` });
+      setState({
+        phase: "error",
+        message: `HTTP ${res.status}${text ? `: ${text.slice(0, 200)}` : ""}`,
+      });
       return;
     }
 
@@ -105,11 +108,11 @@ export function ReprocessButton({ slug }: { slug: string }) {
         {state.phase === "running" ? "재처리 중" : "지금 재처리"}
       </Button>
 
-      {state.phase === "running" ? (
-        <RunningView startedAt={state.startedAt} now={now} />
-      ) : null}
+      {state.phase === "running" ? <RunningView startedAt={state.startedAt} now={now} /> : null}
 
-      {state.phase === "done" ? <DoneView result={state.result} durationMs={state.durationMs} /> : null}
+      {state.phase === "done" ? (
+        <DoneView result={state.result} durationMs={state.durationMs} />
+      ) : null}
 
       {state.phase === "error" ? (
         <p className={styles.errorMsg}>재처리 실패: {state.message}</p>
@@ -160,7 +163,8 @@ function estimateStage(elapsedMs: number): { label: string; detail: string } {
   if (elapsedMs < 4_000) {
     return {
       label: "ar5iv HTML 가져오는 중",
-      detail: "arXiv의 ar5iv 미러에서 논문 HTML을 가져오고 있습니다. 처음 수 초간 시간이 소요될 수 있습니다.",
+      detail:
+        "arXiv의 ar5iv 미러에서 논문 HTML을 가져오고 있습니다. 처음 수 초간 시간이 소요될 수 있습니다.",
     };
   }
   if (elapsedMs < 8_000) {
@@ -218,7 +222,8 @@ function summaryHeadline(result: ReprocessSuccess): string {
   }
   if (result.draftStatus === "failed") return "초벌 번역에 모두 실패했습니다";
   if (result.draftStatus === "partial") return "재처리가 완료되었습니다 (일부 번역 실패)";
-  if (result.draftStatus === "skipped") return "재처리가 완료되었습니다 (번역 건너뜀 - API 키 미설정)";
+  if (result.draftStatus === "skipped")
+    return "재처리가 완료되었습니다 (번역 건너뜀 - API 키 미설정)";
   return "재처리가 완료되었습니다";
 }
 

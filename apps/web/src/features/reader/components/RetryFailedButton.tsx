@@ -33,13 +33,7 @@ type State =
   | { phase: "done-nothing" }
   | { phase: "error"; message: string };
 
-export function RetryFailedButton({
-  slug,
-  failedCount,
-}: {
-  slug: string;
-  failedCount: number;
-}) {
+export function RetryFailedButton({ slug, failedCount }: { slug: string; failedCount: number }) {
   const router = useRouter();
   const [state, setState] = useState<State>({ phase: "idle" });
   const [now, setNow] = useState(() => Date.now());
@@ -122,7 +116,9 @@ export function RetryFailedButton({
       ) : null}
 
       {state.phase === "done-nothing" ? (
-        <p className={styles.stageDetail}>번역이 실패한 세그먼트가 없어 재시도할 대상이 없습니다.</p>
+        <p className={styles.stageDetail}>
+          번역이 실패한 세그먼트가 없어 재시도할 대상이 없습니다.
+        </p>
       ) : null}
 
       {state.phase === "error" ? (
@@ -146,12 +142,15 @@ function RunningView({
     <div className={styles.progress} role="status" aria-live="polite">
       <div className={styles.stageLine}>
         <span className={styles.stage}>
-          <span className={styles.dots}>실패한 {attempted}개 세그먼트를 묶어 다시 번역 중입니다</span>
+          <span className={styles.dots}>
+            실패한 {attempted}개 세그먼트를 묶어 다시 번역 중입니다
+          </span>
         </span>
         <span className={styles.elapsed}>{formatElapsed(elapsedMs)}</span>
       </div>
       <span className={styles.stageDetail}>
-        세그먼트 8개씩 묶어 Gemini로 요청을 보냅니다. 호출 간 4초의 간격이 강제되므로 분량이 많으면 몇 분 정도 소요될 수 있습니다.
+        세그먼트 8개씩 묶어 Gemini로 요청을 보냅니다. 호출 간 4초의 간격이 강제되므로 분량이 많으면
+        몇 분 정도 소요될 수 있습니다.
       </span>
     </div>
   );

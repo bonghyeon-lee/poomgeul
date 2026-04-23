@@ -97,9 +97,12 @@ jobs:
       - name: E2E tests (NestApplication + supertest)
         run: pnpm --filter @poomgeul/api run test:e2e
 
+      - name: Build API (compiled output needed for Swagger decorator metadata)
+        run: pnpm --filter @poomgeul/api run build
+
       - name: Boot API in background (for smoke curls)
         run: |
-          pnpm --filter @poomgeul/api dev &
+          pnpm --filter @poomgeul/api start &
           echo "API_PID=$!" >> $GITHUB_ENV
 
       - name: Wait for /healthz

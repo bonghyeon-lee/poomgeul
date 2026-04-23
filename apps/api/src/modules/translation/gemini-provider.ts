@@ -180,10 +180,9 @@ export class GeminiTranslationProvider {
     } catch (err) {
       clearTimeout(timer);
       if (err instanceof Error && err.name === "AbortError") {
-        throw new TranslationProviderError(
-          `Gemini request timed out after ${this.timeoutMs}ms`,
-          { cause: err },
-        );
+        throw new TranslationProviderError(`Gemini request timed out after ${this.timeoutMs}ms`, {
+          cause: err,
+        });
       }
       throw new TranslationProviderError("Gemini request failed", { cause: err });
     }
@@ -209,7 +208,10 @@ export class GeminiTranslationProvider {
     }
 
     const candidate = payload.candidates?.[0];
-    const output = candidate?.content?.parts?.map((p) => p.text ?? "").join("").trim();
+    const output = candidate?.content?.parts
+      ?.map((p) => p.text ?? "")
+      .join("")
+      .trim();
     if (!output) {
       throw new TranslationProviderError(
         `Gemini returned no candidate text (finishReason=${candidate?.finishReason ?? "unknown"})`,
@@ -248,9 +250,7 @@ export class GeminiTranslationProvider {
     const prompt = this.getPrompt(PROMPT_FILE_BATCH);
     const url = `${this.endpoint}/${encodeURIComponent(this.model)}:generateContent?key=${this.apiKey}`;
 
-    const userPayload = JSON.stringify(
-      inputs.map((it) => ({ id: it.id, text: it.text })),
-    );
+    const userPayload = JSON.stringify(inputs.map((it) => ({ id: it.id, text: it.text })));
 
     const body = {
       systemInstruction: { parts: [{ text: prompt.body }] },
@@ -317,7 +317,10 @@ export class GeminiTranslationProvider {
     }
 
     const candidate = payload.candidates?.[0];
-    const rawText = candidate?.content?.parts?.map((p) => p.text ?? "").join("").trim();
+    const rawText = candidate?.content?.parts
+      ?.map((p) => p.text ?? "")
+      .join("")
+      .trim();
     if (!rawText) {
       throw new TranslationProviderError(
         `Gemini returned no candidate text (finishReason=${candidate?.finishReason ?? "unknown"})`,
@@ -367,9 +370,7 @@ export class GeminiTranslationProvider {
     }
     for (const id of expectedIds) {
       if (!receivedIds.has(id)) {
-        throw new TranslationProviderError(
-          `Gemini batch missing id ${id} in response`,
-        );
+        throw new TranslationProviderError(`Gemini batch missing id ${id} in response`);
       }
     }
 

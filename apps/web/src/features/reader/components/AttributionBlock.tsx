@@ -76,9 +76,7 @@ export function AttributionBlock({ source, translation, contributors }: Attribut
               {c.githubHandle ? (
                 <span className={styles.contributorHandle}>@{c.githubHandle}</span>
               ) : null}
-              <span className={styles.contributorCount}>
-                · merged {c.mergedProposalCount}
-              </span>
+              <span className={styles.contributorCount}>· merged {c.mergedProposalCount}</span>
             </li>
           ))}
         </ul>

@@ -26,7 +26,10 @@ async function bootstrap() {
 
   // CORS — dev: Next.js at :3001. Prod: domain list lives in env (not set yet).
   const devOrigins = ["http://localhost:3001"];
-  const envOrigins = process.env.CORS_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  const envOrigins =
+    process.env.CORS_ORIGINS?.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean) ?? [];
   app.enableCors({
     origin: [...new Set([...devOrigins, ...envOrigins])],
     credentials: true,

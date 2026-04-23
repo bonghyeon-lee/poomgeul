@@ -116,12 +116,7 @@ export class SourceRepository {
       })
       .from(sources)
       .innerJoin(translations, eq(translations.sourceId, sources.sourceId))
-      .where(
-        and(
-          eq(translations.targetLang, "ko"),
-          like(sources.attributionSource, `${exact}%`),
-        ),
-      )
+      .where(and(eq(translations.targetLang, "ko"), like(sources.attributionSource, `${exact}%`)))
       .limit(20);
 
     // LIKE는 `<exact>something` 같은 다른 bareId의 prefix 매칭도 걸 수 있다
@@ -295,10 +290,7 @@ export class SourceRepository {
     const translatedCountByTr = new Map<string, number>();
     for (const r of tsRows) {
       if (r.aiDraftText === null) continue;
-      translatedCountByTr.set(
-        r.translationId,
-        (translatedCountByTr.get(r.translationId) ?? 0) + 1,
-      );
+      translatedCountByTr.set(r.translationId, (translatedCountByTr.get(r.translationId) ?? 0) + 1);
     }
 
     return rows.map((r) => {

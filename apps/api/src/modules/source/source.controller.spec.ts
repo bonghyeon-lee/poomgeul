@@ -5,9 +5,7 @@ import type { SourceRepository } from "./source.repository.js";
 import type { CreateTranslationResult } from "./source.service.js";
 import { SourceService } from "./source.service.js";
 
-function stubArxiv(
-  behavior: (bareId: string) => Promise<ArxivMetadata>,
-): ArxivClient {
+function stubArxiv(behavior: (bareId: string) => Promise<ArxivMetadata>): ArxivClient {
   return { fetchMetadata: behavior } as unknown as ArxivClient;
 }
 
@@ -91,9 +89,7 @@ describe("SourceController.lookupLicense", () => {
   });
 
   it("tolerates Nest passing undefined for a missing query param", async () => {
-    const result = await makeController().lookupLicense(
-      undefined as unknown as string,
-    );
+    const result = await makeController().lookupLicense(undefined as unknown as string);
     expect(result).toMatchObject({ outcome: "invalid-input", code: "empty" });
   });
 });

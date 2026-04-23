@@ -61,9 +61,7 @@ function parseAtomEntry(xml: string, bareId: string): ArxivMetadata | null {
   const version = versionMatch?.[2] ?? "v1";
 
   const titleMatch = entry.match(/<title>([\s\S]*?)<\/title>/);
-  const title = (titleMatch?.[1] ?? "")
-    .replace(/\s+/g, " ")
-    .trim();
+  const title = (titleMatch?.[1] ?? "").replace(/\s+/g, " ").trim();
 
   const authors: string[] = [];
   for (const m of entry.matchAll(/<author>\s*<name>([\s\S]*?)<\/name>\s*<\/author>/g)) {
@@ -103,7 +101,8 @@ export class ArxivClient {
 
   constructor(options?: { endpoint?: string; timeoutMs?: number }) {
     this.endpoint = options?.endpoint ?? process.env.ARXIV_API_ENDPOINT ?? DEFAULT_ENDPOINT;
-    this.timeoutMs = options?.timeoutMs ?? Number(process.env.ARXIV_API_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
+    this.timeoutMs =
+      options?.timeoutMs ?? Number(process.env.ARXIV_API_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
   }
 
   async fetchMetadata(bareId: string): Promise<ArxivMetadata> {

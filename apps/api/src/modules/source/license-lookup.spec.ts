@@ -4,9 +4,7 @@ import { parseSourceInput } from "./input.js";
 import { LicenseLookupService } from "./license-lookup.js";
 import type { RegisteredTranslation, SourceRepository } from "./source.repository.js";
 
-function stubClient(
-  behavior: (bareId: string) => Promise<ArxivMetadata>,
-): ArxivClient {
+function stubClient(behavior: (bareId: string) => Promise<ArxivMetadata>): ArxivClient {
   return { fetchMetadata: behavior } as unknown as ArxivClient;
 }
 

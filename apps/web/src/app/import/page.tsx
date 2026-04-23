@@ -101,8 +101,7 @@ export default function ImportPage() {
     setCreation({ phase: "error", message: createErrorMessage(result) });
   }
 
-  const inputError =
-    status.phase === "parse-error" ? status.message : undefined;
+  const inputError = status.phase === "parse-error" ? status.message : undefined;
 
   return (
     <div className={styles.shell}>
@@ -122,8 +121,8 @@ export default function ImportPage() {
         <section className={styles.title}>
           <h1>원문 가져오기</h1>
           <p className={styles.titleLead}>
-            arXiv ID · arXiv URL · DOI를 붙여넣으면 라이선스를 자동으로 검증합니다.
-            CC BY와 CC BY-SA, 퍼블릭 도메인만 번역본 등록이 가능합니다.
+            arXiv ID · arXiv URL · DOI를 붙여넣으면 라이선스를 자동으로 검증합니다. CC BY와 CC
+            BY-SA, 퍼블릭 도메인만 번역본 등록이 가능합니다.
           </p>
         </section>
 
@@ -152,9 +151,9 @@ export default function ImportPage() {
             </Button>
           </div>
           <div className={styles.formFooter}>
-            입력은 <code>GET /api/sources/license</code>를 거쳐 실제 arXiv Query API로
-            조회됩니다. arXiv 대부분의 논문은 CC가 아닌 기본 non-exclusive 라이선스여서
-            차단 결과가 일반적입니다. 등록(번역본 생성)은 API 연동 완료 후 활성화됩니다.
+            입력은 <code>GET /api/sources/license</code>를 거쳐 실제 arXiv Query API로 조회됩니다.
+            arXiv 대부분의 논문은 CC가 아닌 기본 non-exclusive 라이선스여서 차단 결과가
+            일반적입니다. 등록(번역본 생성)은 API 연동 완료 후 활성화됩니다.
           </div>
         </form>
 
@@ -267,14 +266,11 @@ function ResultCard({
         ) : (
           <>
             <p className={styles.resultNote}>
-              등록 가능합니다. 생성 직후엔 세그먼트가 비어 있고 ar5iv 파싱(M0 #3)은
-              다음 단계에서 진행됩니다.
+              등록 가능합니다. 생성 직후엔 세그먼트가 비어 있고 ar5iv 파싱(M0 #3)은 다음 단계에서
+              진행됩니다.
             </p>
             <div className={styles.resultActions}>
-              <Button
-                onClick={() => onCreate(parsed)}
-                disabled={creation.phase === "creating"}
-              >
+              <Button onClick={() => onCreate(parsed)} disabled={creation.phase === "creating"}>
                 {creation.phase === "creating" ? "만드는 중…" : "번역본 만들기"}
               </Button>
               {creation.phase === "error" ? (
@@ -316,7 +312,9 @@ function ResultCard({
         <div className={styles.resultHead}>
           <h2 className={styles.resultTitle}>DOI는 M1에 지원</h2>
         </div>
-        <p className={styles.resultNote}>DOI는 현재 지원 준비 중입니다. M1 단계에서 지원할 예정입니다.</p>
+        <p className={styles.resultNote}>
+          DOI는 현재 지원 준비 중입니다. M1 단계에서 지원할 예정입니다.
+        </p>
       </div>
     );
   }
