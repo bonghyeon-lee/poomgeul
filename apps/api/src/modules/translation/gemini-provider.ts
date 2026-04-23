@@ -16,10 +16,24 @@ import { loadPrompt, type LoadedPrompt } from "./prompt-loader.js";
 
 export class TranslationProviderError extends Error {
   override readonly cause?: unknown;
-  constructor(message: string, cause?: unknown) {
+  readonly httpStatus?: number;
+  constructor(message: string, opts?: { cause?: unknown; httpStatus?: number }) {
     super(message);
     this.name = "TranslationProviderError";
-    this.cause = cause;
+    this.cause = opts?.cause;
+    this.httpStatus = opts?.httpStatus;
+  }
+
+  /** 429 또는 메시지에 quota/rate 포함. 429 본문이 "exceeded your current quota"인 경우 등. */
+  get isRateLimited(): boolean {
+    if (this.httpStatus === 429) return true;
+    return /rate limit|quota|exceeded your current/i.test(this.message);
+  }
+
+  /** 401/403처럼 당장 재시도해도 의미 없는 종류. 429는 별도 취급이라 permanent가 아님. */
+  get isPermanent(): boolean {
+    if (this.httpStatus === 401 || this.httpStatus === 403) return true;
+    return /API key|permission|invalid argument|unauthorized/i.test(this.message);
   }
 }
 
@@ -125,10 +139,10 @@ export class GeminiTranslationProvider {
       if (err instanceof Error && err.name === "AbortError") {
         throw new TranslationProviderError(
           `Gemini request timed out after ${this.timeoutMs}ms`,
-          err,
+          { cause: err },
         );
       }
-      throw new TranslationProviderError("Gemini request failed", err);
+      throw new TranslationProviderError("Gemini request failed", { cause: err });
     }
     clearTimeout(timer);
 
@@ -138,6 +152,7 @@ export class GeminiTranslationProvider {
       const text = await res.text().catch(() => "");
       throw new TranslationProviderError(
         `Gemini responded with HTTP ${res.status}: ${text.slice(0, 200)}`,
+        { httpStatus: res.status },
       );
     }
 
@@ -145,6 +160,7 @@ export class GeminiTranslationProvider {
     if (payload.error) {
       throw new TranslationProviderError(
         `Gemini API error: ${payload.error.message ?? payload.error.status ?? "unknown"}`,
+        { httpStatus: payload.error.code },
       );
     }
 
