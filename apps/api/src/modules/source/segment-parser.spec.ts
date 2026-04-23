@@ -26,6 +26,29 @@ describe("splitSentences", () => {
   it("returns empty for empty input", () => {
     expect(splitSentences("")).toEqual([]);
   });
+
+  it("keeps 'Author et al. (YEAR)' as one sentence (no split at the paren)", () => {
+    const text = "However, recent work from Hoffmann et al. (2022) shows that scaling matters. The next sentence follows.";
+    expect(splitSentences(text)).toEqual([
+      "However, recent work from Hoffmann et al. (2022) shows that scaling matters.",
+      "The next sentence follows.",
+    ]);
+  });
+
+  it("keeps 'Name (YEAR)' citation mid-sentence without splitting", () => {
+    const text = "Following Lewkowycz et al. (2022), we remove everything before the first section.";
+    expect(splitSentences(text)).toEqual([
+      "Following Lewkowycz et al. (2022), we remove everything before the first section.",
+    ]);
+  });
+
+  it("does not emit tiny leading-paren fragments like '(2020).' as a standalone sentence", () => {
+    const text = "Based on Kaplan et al. (2020). Scaling laws matter.";
+    expect(splitSentences(text)).toEqual([
+      "Based on Kaplan et al. (2020).",
+      "Scaling laws matter.",
+    ]);
+  });
 });
 
 describe("parseAr5ivHtml — abstract + body + references + footnote", () => {
@@ -105,6 +128,30 @@ describe("parseAr5ivHtml — abstract + body + references + footnote", () => {
     for (let i = 0; i < segments.length; i += 1) {
       expect(segments[i]!.order).toBe(i);
     }
+  });
+});
+
+describe("parseAr5ivHtml — footnote marker noise", () => {
+  it("drops ltx_note_content blocks that are only the footnote marker", () => {
+    const html = `
+      <section class="ltx_section">
+        <p class="ltx_p">Main body sentence one.</p>
+        <span class="ltx_note ltx_role_footnote">
+          <span class="ltx_note_content">1 footnotemark:</span>
+        </span>
+        <span class="ltx_note ltx_role_footnote">
+          <span class="ltx_note_content">2 footnotemark :</span>
+        </span>
+        <span class="ltx_note ltx_role_footnote">
+          <span class="ltx_note_content">3 footnotemark: See the xformers repository at github for more.</span>
+        </span>
+      </section>
+    `;
+    const out = parseAr5ivHtml(html);
+    const footnotes = out.filter((s) => s.kind === "footnote");
+    // 마커만 들어 있는 두 개는 버리고, 실제 설명이 있는 한 개만 남아야 한다.
+    expect(footnotes).toHaveLength(1);
+    expect(footnotes[0]!.text).toContain("xformers");
   });
 });
 

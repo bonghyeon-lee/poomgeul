@@ -116,6 +116,9 @@ export function parseAr5ivHtml(html: string, options: ParseOptions = {}): Parsed
     if (text.length < minChars) continue;
     // 노이즈 줄이기: "footnotemark:" 같은 레이블 반복은 건너뛴다.
     if (/^\d+$/.test(text)) continue;
+    // ar5iv는 inline 링크 각주의 경우 ltx_note_content를 "1 footnotemark:"처럼 마커 문자열만으로
+    // 채운다. 실제 각주 내용이 아니므로 버린다. 실제 내용이 이어지면 그건 살린다.
+    if (/^\d+\s*footnotemark\s*:?\s*$/i.test(text)) continue;
     segments.push({ order: order++, kind: "footnote", text });
   }
 
@@ -207,13 +210,15 @@ export function splitSentences(text: string): string[] {
     const next = chars[i + 1];
     const afterNext = chars[i + 2];
     // 문장 끝 판정: 다음 문자가 공백이고 그 다음이 대문자/따옴표거나, 문서 끝.
+    // 주의: `(`로 시작하는 이어짐은 학술 인용 `Author et al. (YEAR)` 패턴일 가능성이
+    // 크므로 경계로 보지 않는다. 그런 인용은 앞 문장에 이어 붙여야 한다.
     const endOfText = next === undefined;
     const peekIsSpace = next === " " || next === "\t" || next === "\n";
     const peekIsBoundary =
       endOfText ||
       (peekIsSpace &&
         (afterNext === undefined ||
-          /[A-Z0-9§⟦"'“‘([]/.test(afterNext) ||
+          /[A-Z0-9§⟦"'“‘[]/.test(afterNext) ||
           afterNext === " "));
 
     if (!peekIsBoundary) continue;
@@ -229,5 +234,23 @@ export function splitSentences(text: string): string[] {
 
   const remainder = buffer.trim();
   if (remainder) sentences.push(remainder);
-  return sentences;
+
+  // 사후 병합: "( 2022 ) something" 또는 "(2022) ..."처럼 여는 괄호로 시작하는
+  // 조각은 대개 인용이 앞 문장에서 끊긴 경우. 직전 문장에 다시 이어 붙인다.
+  return mergeCitationFragments(sentences);
+}
+
+const CITATION_FRAGMENT_RE = /^\(\s*\d/;
+
+function mergeCitationFragments(sentences: string[]): string[] {
+  if (sentences.length <= 1) return sentences;
+  const out: string[] = [];
+  for (const s of sentences) {
+    if (out.length > 0 && CITATION_FRAGMENT_RE.test(s)) {
+      out[out.length - 1] = `${out[out.length - 1]} ${s}`;
+      continue;
+    }
+    out.push(s);
+  }
+  return out;
 }
