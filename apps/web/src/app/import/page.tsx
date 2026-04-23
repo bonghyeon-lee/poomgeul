@@ -114,8 +114,8 @@ export default function ImportPage() {
             </Button>
           </div>
           <div className={styles.formFooter}>
-            제출 즉시 어느 데이터도 서버로 전송되지 않는다. 현재 화면은 M0 스펙
-            #2의 클라이언트 측 미리보기다. 실제 등록은 API 연결 이후에 가능하다.
+            입력은 <code>GET /api/sources/license</code>로 백엔드에 실제 조회된다.
+            등록(번역본 생성)은 API가 붙을 때까지 비활성.
           </div>
         </form>
 
@@ -255,6 +255,17 @@ function ResultCard({
       <div className={`${styles.resultCard} ${styles.resultCardWarn}`}>
         <div className={styles.resultHead}>
           <h2 className={styles.resultTitle}>DOI는 M1에 지원</h2>
+        </div>
+        <p className={styles.resultNote}>{result.reason}</p>
+      </div>
+    );
+  }
+
+  if (result.outcome === "network-error") {
+    return (
+      <div className={`${styles.resultCard} ${styles.resultCardBlocked}`}>
+        <div className={styles.resultHead}>
+          <h2 className={styles.resultTitle}>API 호출 실패</h2>
         </div>
         <p className={styles.resultNote}>{result.reason}</p>
       </div>
