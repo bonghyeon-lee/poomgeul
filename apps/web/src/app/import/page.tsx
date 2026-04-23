@@ -21,10 +21,10 @@ type FormStatus =
   | { phase: "result"; parsed: ParsedSource; result: LicenseLookupResult };
 
 const SAMPLES: Array<{ label: string; value: string; kind: string }> = [
-  { label: "CC BY · 이미 등록됨", value: "2310.12345", kind: "arxiv" },
-  { label: "CC BY-SA · ShareAlike", value: "arXiv:2504.20451", kind: "arxiv" },
-  { label: "CC BY-ND · 차단", value: "https://arxiv.org/abs/2401.11112", kind: "arxiv" },
-  { label: "Public Domain", value: "2506.00001", kind: "arxiv" },
+  { label: "실제 arXiv (대부분 non-CC → 차단)", value: "2504.20451", kind: "arxiv" },
+  { label: "arXiv URL 형식", value: "https://arxiv.org/abs/2310.12345", kind: "arxiv" },
+  { label: "존재하지 않는 ID", value: "9999.99999", kind: "arxiv" },
+  { label: "잘못된 형식", value: "not-an-id", kind: "invalid" },
   { label: "DOI · M1 예정", value: "10.1234/abcd.5678", kind: "doi" },
 ];
 
@@ -114,8 +114,9 @@ export default function ImportPage() {
             </Button>
           </div>
           <div className={styles.formFooter}>
-            입력은 <code>GET /api/sources/license</code>로 백엔드에 실제 조회된다.
-            등록(번역본 생성)은 API가 붙을 때까지 비활성.
+            입력은 <code>GET /api/sources/license</code>를 거쳐 실제 arXiv Query API로
+            조회된다. arXiv 대부분의 논문은 CC가 아닌 기본 non-exclusive 라이선스여서
+            차단 결과가 일반적이다. 등록(번역본 생성)은 API가 붙을 때까지 비활성.
           </div>
         </form>
 
@@ -238,7 +239,13 @@ function ResultCard({
       <div className={`${styles.resultCard} ${styles.resultCardBlocked}`}>
         <div className={styles.resultHead}>
           <h2 className={styles.resultTitle}>{result.title}</h2>
-          <LicenseBadge kind={result.license} />
+          {result.license === "arxiv-default" ? (
+            <span className={styles.resultNote}>
+              <code>arXiv non-exclusive</code>
+            </span>
+          ) : (
+            <LicenseBadge kind={result.license} />
+          )}
         </div>
         <p className={styles.resultNote}>{result.reason}</p>
         <div className={styles.resultActions}>
@@ -255,6 +262,17 @@ function ResultCard({
       <div className={`${styles.resultCard} ${styles.resultCardWarn}`}>
         <div className={styles.resultHead}>
           <h2 className={styles.resultTitle}>DOI는 M1에 지원</h2>
+        </div>
+        <p className={styles.resultNote}>{result.reason}</p>
+      </div>
+    );
+  }
+
+  if (result.outcome === "upstream-error") {
+    return (
+      <div className={`${styles.resultCard} ${styles.resultCardBlocked}`}>
+        <div className={styles.resultHead}>
+          <h2 className={styles.resultTitle}>arXiv 조회 실패</h2>
         </div>
         <p className={styles.resultNote}>{result.reason}</p>
       </div>

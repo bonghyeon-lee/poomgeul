@@ -13,6 +13,13 @@ import type { LicenseKind } from "@/components/ui";
 
 import type { ParsedSource } from "./parse-source-input";
 
+/**
+ * 서버 응답의 blocked.license는 CC 라이선스 키 외에도 "arxiv-default" 리터럴을
+ * 돌려준다. 이는 저자가 CC를 선택하지 않아 arXiv 기본 non-exclusive 라이선스가
+ * 적용되는 경우로, LicenseBadge가 아닌 텍스트 배지로 렌더한다.
+ */
+export type BlockedLicense = LicenseKind | "arxiv-default";
+
 export type LicenseLookupResult =
   | {
       outcome: "allowed";
@@ -27,7 +34,7 @@ export type LicenseLookupResult =
     }
   | {
       outcome: "blocked";
-      license: LicenseKind;
+      license: BlockedLicense;
       title: string;
       reason: string;
     }
@@ -37,6 +44,10 @@ export type LicenseLookupResult =
     }
   | {
       outcome: "not-found";
+      reason: string;
+    }
+  | {
+      outcome: "upstream-error";
       reason: string;
     }
   | {
