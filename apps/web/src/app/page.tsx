@@ -33,19 +33,15 @@ export default function Home() {
             </p>
             <div className={styles.ctaRow}>
               <Button href="/t/sparse-moe-low-resource-mt">샘플 번역본 읽기</Button>
-              <Button
-                variant="secondary"
-                href="https://github.com/bonghyeon-lee/poomgeul"
-                rel="noreferrer"
-              >
-                GitHub 저장소
+              <Button variant="secondary" href="/import">
+                원문 가져오기
               </Button>
               <Button
                 variant="ghost"
-                href="http://localhost:3000/api/docs"
+                href="https://github.com/bonghyeon-lee/poomgeul"
                 rel="noreferrer"
               >
-                API 문서 보기
+                GitHub
               </Button>
             </div>
           </div>

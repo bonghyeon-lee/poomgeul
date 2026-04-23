@@ -208,7 +208,8 @@ repo `docs/`의 기존 관례를 따른다.
 - **variant는 열거 가능하게.** `Button`의 variant는 `primary | secondary | ghost | destructive`로 고정. 새 variant는 추가하지 말고, 필요하면 해당 맥락에서 새 컴포넌트를 만든다.
 - **`Chip`은 proposal status 전용이다.** 일반 태그·라벨을 만들고 싶으면 별도 컴포넌트(예: `Tag`)를 따로 세운다. 상태 유니온이 섞이는 것을 막는다.
 - **`LicenseBadge`는 블록 레벨 UI로 노출한다.** 푸터에만 배치하지 않는다. Reader 헤더·번역본 Attribution·원문 import 확인 화면에서 일관된 크기(16~18px 라인 높이)로 쓴다.
-- **도메인-특화 컴포넌트는 `features/<domain>/`에 둔다.** 예: 원문·번역 병렬 세그먼트 행(`SegmentPair`)과 `AttributionBlock`은 `apps/web/src/features/reader/`에 있고 Reader 외부로 export하지 않는다.
+- **`Input`과 `Textarea`는 라벨·hint·errorMessage를 필수로 함께 다룬다.** placeholder만 쓴 필드는 접근성 회귀. 단축 입력(arXiv ID 등)은 `mono` prop으로 모노스페이스. error 상태는 `--seal-300` 테두리 + 낙관색 메시지로 고정.
+- **도메인-특화 컴포넌트·순수 함수는 `features/<domain>/`에 둔다.** 예: 원문·번역 병렬 세그먼트 행(`SegmentPair`)과 `AttributionBlock`은 `apps/web/src/features/reader/`에, `parseSourceInput`과 mock 라이선스 조회는 `apps/web/src/features/source-import/`에 있다. feature 외부로는 `index.ts`를 통해서만 노출한다.
 - **Public API는 `index.ts`에서만 export.** 내부 파일 직접 import 금지 — 교체·폴더 재구성 여지를 남긴다.
 
 ---

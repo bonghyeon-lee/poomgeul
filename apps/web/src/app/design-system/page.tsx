@@ -14,7 +14,9 @@ import {
   type LogoVariant,
   type ProposalStatus,
   Eyebrow,
+  Input,
   Logo,
+  Textarea,
 } from "@/components/ui";
 
 import styles from "./page.module.css";
@@ -128,6 +130,7 @@ export default function DesignSystemPage() {
           <a href="#button">button</a>
           <a href="#chip">chip</a>
           <a href="#license">license</a>
+          <a href="#input">input</a>
           <a href="#card">card</a>
           <a href="#donts">don&apos;ts</a>
         </nav>
@@ -337,6 +340,44 @@ export default function DesignSystemPage() {
           {LICENSES.map((kind) => (
             <LicenseBadge key={kind} kind={kind} />
           ))}
+        </div>
+      </section>
+
+      <section id="input" className={styles.section}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}>Input · Textarea</h2>
+          <span className={styles.sectionHint}>components/ui/Input · 라벨 · hint · error</span>
+        </div>
+        <div className={styles.grid}>
+          <Input
+            label="표시 이름"
+            hint="프로필과 기여 이력에 표시된다."
+            placeholder="이름"
+            defaultValue="이봉현"
+            readOnly
+          />
+          <Input
+            label="arXiv ID 또는 URL"
+            mono
+            hint="라이선스를 자동 검증한다."
+            placeholder="2310.12345"
+            defaultValue="2310.12345"
+            readOnly
+          />
+          <Input
+            label="arXiv ID"
+            mono
+            errorMessage="arXiv에서 이 ID를 찾을 수 없다. 형식은 YYMM.NNNNN 이다."
+            defaultValue="not-a-real-id"
+            readOnly
+          />
+          <Textarea
+            label="수정 이유"
+            optional
+            hint="기본 2줄, 세로 드래그로 확장."
+            defaultValue={`"저자는"으로 'We'를 번역했으나 스타일 가이드 §1에 따라 "우리는"으로 되돌린다.`}
+            readOnly
+          />
         </div>
       </section>
 
