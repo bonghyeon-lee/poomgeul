@@ -44,6 +44,9 @@ module.exports = {
   testPathIgnorePatterns,
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
+    // @poomgeul/db는 런타임용으로 dist/*.js가 main이지만, jest(ts-jest)에서는
+    // src/*.ts를 바로 트랜스폼하는 편이 빠르고 ESM/CJS 호환 문제를 피한다.
+    "^@poomgeul/db$": "<rootDir>/../../packages/db/src/index.ts",
   },
   transform: {
     "^.+\\.ts$": ["ts-jest", { useESM: true, tsconfig: "tsconfig.test.json" }],
