@@ -9,6 +9,8 @@ import {
   CardEyebrow,
   CardTitle,
   Chip,
+  type LicenseKind,
+  LicenseBadge,
   type LogoVariant,
   type ProposalStatus,
   Eyebrow,
@@ -64,6 +66,7 @@ const BUTTON_VARIANTS: ButtonVariant[] = ["primary", "secondary", "ghost", "dest
 const BUTTON_SIZES: ButtonSize[] = ["sm", "md", "lg"];
 const STATUSES: ProposalStatus[] = ["open", "merged", "rejected", "stale", "withdrawn"];
 const LOGO_VARIANTS: LogoVariant[] = ["wordmark-ko", "wordmark", "mark"];
+const LICENSES: LicenseKind[] = ["CC-BY", "CC-BY-SA", "PD", "CC-BY-ND", "CC-BY-NC-ND"];
 
 const SPACING = [
   { token: "--space-1", px: 4 },
@@ -124,6 +127,7 @@ export default function DesignSystemPage() {
           <a href="#radius">radius</a>
           <a href="#button">button</a>
           <a href="#chip">chip</a>
+          <a href="#license">license</a>
           <a href="#card">card</a>
           <a href="#donts">don&apos;ts</a>
         </nav>
@@ -320,6 +324,18 @@ export default function DesignSystemPage() {
             <Chip key={status} status={status}>
               {status}
             </Chip>
+          ))}
+        </div>
+      </section>
+
+      <section id="license" className={styles.section}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}>LicenseBadge</h2>
+          <span className={styles.sectionHint}>components/ui/LicenseBadge · 블록 레벨 일급 UI</span>
+        </div>
+        <div className={styles.row}>
+          {LICENSES.map((kind) => (
+            <LicenseBadge key={kind} kind={kind} />
           ))}
         </div>
       </section>

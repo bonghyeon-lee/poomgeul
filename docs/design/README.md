@@ -202,11 +202,13 @@ repo `docs/`의 기존 관례를 따른다.
 
 ## 컴포넌트 키트 사용 원칙
 
-실제 목록과 props는 `apps/web/src/components/ui/index.ts`를 정본으로 본다. 키트는 다음 규칙을 따른다.
+실제 목록과 props는 `apps/web/src/components/ui/index.ts`를 정본으로 본다. 리빙 데모는 `/design-system` 라우트다. 키트는 다음 규칙을 따른다.
 
 - **모든 스타일 값은 토큰 참조만 한다.** `color: #5B3A23` 같은 리터럴 색·크기·그림자를 쓰지 않는다. 유일한 예외는 diff 스와치처럼 토큰이 아직 없는 화면에 한한다(그 경우 새 토큰을 `globals.css`에 먼저 추가한다).
 - **variant는 열거 가능하게.** `Button`의 variant는 `primary | secondary | ghost | destructive`로 고정. 새 variant는 추가하지 말고, 필요하면 해당 맥락에서 새 컴포넌트를 만든다.
 - **`Chip`은 proposal status 전용이다.** 일반 태그·라벨을 만들고 싶으면 별도 컴포넌트(예: `Tag`)를 따로 세운다. 상태 유니온이 섞이는 것을 막는다.
+- **`LicenseBadge`는 블록 레벨 UI로 노출한다.** 푸터에만 배치하지 않는다. Reader 헤더·번역본 Attribution·원문 import 확인 화면에서 일관된 크기(16~18px 라인 높이)로 쓴다.
+- **도메인-특화 컴포넌트는 `features/<domain>/`에 둔다.** 예: 원문·번역 병렬 세그먼트 행(`SegmentPair`)과 `AttributionBlock`은 `apps/web/src/features/reader/`에 있고 Reader 외부로 export하지 않는다.
 - **Public API는 `index.ts`에서만 export.** 내부 파일 직접 import 금지 — 교체·폴더 재구성 여지를 남긴다.
 
 ---

@@ -32,11 +32,16 @@ export default function Home() {
               원문은 위키처럼 공유하고, 번역본은 깃허브처럼 제안하고 머지한다.
             </p>
             <div className={styles.ctaRow}>
-              <Button href="https://github.com/bonghyeon-lee/poomgeul" rel="noreferrer">
-                GitHub에서 읽기
-              </Button>
+              <Button href="/t/sparse-moe-low-resource-mt">샘플 번역본 읽기</Button>
               <Button
                 variant="secondary"
+                href="https://github.com/bonghyeon-lee/poomgeul"
+                rel="noreferrer"
+              >
+                GitHub 저장소
+              </Button>
+              <Button
+                variant="ghost"
                 href="http://localhost:3000/api/docs"
                 rel="noreferrer"
               >
