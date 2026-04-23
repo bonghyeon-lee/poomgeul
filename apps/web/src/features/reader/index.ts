@@ -5,6 +5,7 @@ export { SegmentPair } from "./components/SegmentPair";
 export type { SegmentPairProps } from "./components/SegmentPair";
 
 export { findReaderBundleBySlug, listReaderSlugs, sampleReaderBundle } from "./mocks";
+export { loadReaderBundleFromApi } from "./api";
 export type {
   Contributor,
   ProposalStatus,

@@ -6,6 +6,7 @@ import {
   AttributionBlock,
   findReaderBundleBySlug,
   listReaderSlugs,
+  loadReaderBundleFromApi,
   SegmentPair,
 } from "@/features/reader";
 
@@ -20,13 +21,19 @@ export function generateStaticParams(): RouteParams[] {
   return listReaderSlugs().map((slug) => ({ slug }));
 }
 
+async function resolveBundle(slug: string) {
+  const apiBundle = await loadReaderBundleFromApi(slug);
+  if (apiBundle) return apiBundle;
+  return findReaderBundleBySlug(slug);
+}
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<RouteParams>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const bundle = findReaderBundleBySlug(slug);
+  const bundle = await resolveBundle(slug);
   if (!bundle) {
     return {
       title: `${slug} — 세그먼트 분할 대기 · poomgeul`,
@@ -49,8 +56,12 @@ export default async function ReaderPage({
   params: Promise<RouteParams>;
 }) {
   const { slug } = await params;
-  const bundle = findReaderBundleBySlug(slug);
+  const bundle = await resolveBundle(slug);
   if (!bundle) {
+    return <PendingSegmentsView slug={slug} />;
+  }
+  // 세그먼트가 비어 있으면 API에서 번역본은 찾았으나 분할이 아직인 상태로 간주.
+  if (bundle.segments.length === 0) {
     return <PendingSegmentsView slug={slug} />;
   }
 
