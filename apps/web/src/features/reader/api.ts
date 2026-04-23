@@ -79,6 +79,11 @@ export type TranslationListItem = {
   leadDisplayName: string | null;
   segmentCount: number;
   translatedCount: number;
+  /**
+   * Reader가 의미 있는 렌더를 할 수 있는가(세그먼트가 1개 이상 존재). false면 ar5iv가
+   * 지원하지 않은 논문으로 간주하고 목록에서 별도 섹션에 둔다.
+   */
+  renderable: boolean;
 };
 
 /**

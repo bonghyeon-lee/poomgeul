@@ -22,6 +22,8 @@ export const dynamic = "force-dynamic";
 export default async function TranslationsListPage() {
   const { items, error } = await loadTranslationList(50);
   const merged = mergeWithSample(items);
+  const renderableItems = merged.filter((it) => it.renderable);
+  const unrenderableItems = merged.filter((it) => !it.renderable);
 
   return (
     <div className={styles.shell}>
@@ -63,13 +65,43 @@ export default async function TranslationsListPage() {
               번역본을 등록해보자.
             </span>
           </div>
-        ) : (
+        ) : null}
+
+        {renderableItems.length > 0 ? (
           <div className={styles.grid}>
-            {merged.map((item) => (
+            {renderableItems.map((item) => (
               <TranslationCard key={item.translationId} item={item} />
             ))}
           </div>
-        )}
+        ) : null}
+
+        {unrenderableItems.length > 0 ? (
+          <section className={styles.unsupportedSection}>
+            <div className={styles.unsupportedHead}>
+              <h2 className={styles.unsupportedTitle}>
+                번역 불가 · ar5iv 미지원 ({unrenderableItems.length})
+              </h2>
+              <span className={styles.unsupportedHint}>
+                ar5iv 미러가 이 논문의 HTML 렌더를 제공하지 않아 세그먼트가 0개인 상태. M0는
+                ar5iv만 쓰므로 번역 대상이 될 수 없다. M1에서 PDF 파서가 붙으면 이 목록이
+                되살아난다.
+              </span>
+            </div>
+            <ul className={styles.unsupportedList}>
+              {unrenderableItems.map((item) => (
+                <li key={item.translationId}>
+                  <Link href={`/t/${item.slug}`} className={styles.unsupportedRow}>
+                    <span className={styles.unsupportedRowTitle}>{item.title}</span>
+                    <span className={styles.unsupportedRowMeta}>
+                      {formatAuthors(item.authors)} · {item.sourceVersion} ·{" "}
+                      {formatDate(item.importedAt)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </main>
     </div>
   );
@@ -153,6 +185,7 @@ function mergeWithSample(items: TranslationListItem[]): TranslationListItem[] {
     translatedCount: sampleReaderBundle.translationSegments.filter(
       (ts) => ts.aiDraftText !== null,
     ).length,
+    renderable: sampleReaderBundle.segments.length > 0,
   };
   return [...items, sample];
 }
