@@ -7,6 +7,7 @@ import {
   findReaderBundleBySlug,
   listReaderSlugs,
   loadReaderBundleFromApi,
+  ReprocessButton,
   SegmentPair,
 } from "@/features/reader";
 
@@ -226,10 +227,16 @@ function PendingSegmentsView({ slug }: { slug: string }) {
             <h2>무슨 일이 일어났나</h2>
           </div>
           <p className={styles.notice}>
-            번역본 row는 만들어졌으나 원문 세그먼트 분할이 아직 끝나지 않았다.
-            M0 스펙 #3(ar5iv HTML 파싱)의 구현이 붙으면 이 페이지에 원문과
-            AI 초벌 번역이 나타난다. 직접 URL을 입력해 도착했다면 슬러그 오타일 수도 있으니{" "}
-            <Link href="/">홈</Link>에서 다시 시작할 수 있다.
+            번역본 row는 만들어졌으나 원문 세그먼트 분할과 AI 초벌이 아직 비어 있다.
+            등록 당시에 파서·LLM이 없었거나, 당시 호출이 실패했거나, 직접 URL을 입력해
+            도착했는데 슬러그가 없는 경우다. arXiv 원문이라면 아래 버튼으로 ar5iv에서
+            다시 가져와 Gemini 초벌까지 다시 채울 수 있다. 호출 수에 비례해 시간이 걸린다.
+          </p>
+          <div style={{ marginTop: "var(--space-4)" }}>
+            <ReprocessButton slug={slug} />
+          </div>
+          <p className={styles.notice} style={{ marginTop: "var(--space-3)" }}>
+            슬러그 오타라면 <Link href="/">홈</Link>에서 다시 시작할 수 있다.
           </p>
         </section>
       </main>
