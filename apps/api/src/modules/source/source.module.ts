@@ -60,7 +60,14 @@ class DbHolder implements OnModuleDestroy {
       provide: TRANSLATION_PROVIDER,
       useFactory: () => new GeminiTranslationProvider(),
     },
-    TranslationDraftService,
+    {
+      // TranslationDraftService의 생성자는 두 번째 파라미터로 options 객체를 받는다.
+      // Nest가 이 Object를 provider로 해석하려 실패하므로 useFactory로 직접 생성한다.
+      provide: TranslationDraftService,
+      useFactory: (provider: GeminiTranslationProvider) =>
+        new TranslationDraftService(provider),
+      inject: [TRANSLATION_PROVIDER],
+    },
     LicenseLookupService,
     SourceService,
   ],

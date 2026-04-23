@@ -2,7 +2,9 @@ import { Inject, Injectable } from "@nestjs/common";
 import {
   type Db,
   and,
+  desc,
   eq,
+  inArray,
   like,
   segments,
   sources,
@@ -57,6 +59,24 @@ export type ReaderBundleRow = {
     version: number;
     status: "unreviewed" | "approved";
   }>;
+};
+
+export type TranslationListItem = {
+  translationId: string;
+  slug: string;
+  targetLang: string;
+  status: "draft" | "reviewed" | "featured";
+  license: "CC-BY" | "CC-BY-SA" | "PD" | "CC-BY-NC";
+  sourceId: string;
+  title: string;
+  authors: string[];
+  sourceLicense: "CC-BY" | "CC-BY-SA" | "PD" | "CC-BY-NC";
+  sourceVersion: string;
+  importedAt: Date;
+  leadDisplayName: string | null;
+  segmentCount: number;
+  /** aiDraftText가 null이 아닌 translationSegment 수 — 실제 AI 번역이 붙은 개수. */
+  translatedCount: number;
 };
 
 /**
@@ -213,5 +233,83 @@ export class SourceRepository {
       segments: segRows,
       translationSegments: tsRows,
     };
+  }
+
+  /**
+   * 최근 등록된 ko 번역본 목록. imported_at DESC 정렬. 각 row에 세그먼트 수와
+   * 실제 번역된(=aiDraftText is not null) 세그먼트 수를 집계해 붙인다.
+   */
+  async listTranslations(options?: { limit?: number }): Promise<TranslationListItem[]> {
+    const limit = Math.min(Math.max(options?.limit ?? 50, 1), 200);
+
+    const rows = await this.db
+      .select({
+        translationId: translations.translationId,
+        slug: translations.slug,
+        targetLang: translations.targetLang,
+        status: translations.status,
+        translationLicense: translations.license,
+        sourceId: sources.sourceId,
+        title: sources.title,
+        authors: sources.author,
+        sourceLicense: sources.license,
+        sourceVersion: sources.sourceVersion,
+        importedAt: sources.importedAt,
+        leadDisplayName: users.displayName,
+      })
+      .from(translations)
+      .innerJoin(sources, eq(sources.sourceId, translations.sourceId))
+      .leftJoin(users, eq(users.id, translations.leadId))
+      .where(eq(translations.targetLang, "ko"))
+      .orderBy(desc(sources.importedAt))
+      .limit(limit);
+
+    if (rows.length === 0) return [];
+
+    const translationIds = rows.map((r) => r.translationId);
+    const sourceIds = rows.map((r) => r.sourceId);
+
+    // 집계 2개: segments per source / translationSegments per translation (aiDraftText 기준).
+    const segRows = await this.db
+      .select({ sourceId: segments.sourceId, segmentId: segments.segmentId })
+      .from(segments)
+      .where(inArray(segments.sourceId, sourceIds));
+    const segCountBySource = new Map<string, number>();
+    for (const r of segRows) {
+      segCountBySource.set(r.sourceId, (segCountBySource.get(r.sourceId) ?? 0) + 1);
+    }
+
+    const tsRows = await this.db
+      .select({
+        translationId: translationSegments.translationId,
+        aiDraftText: translationSegments.aiDraftText,
+      })
+      .from(translationSegments)
+      .where(inArray(translationSegments.translationId, translationIds));
+    const translatedCountByTr = new Map<string, number>();
+    for (const r of tsRows) {
+      if (r.aiDraftText === null) continue;
+      translatedCountByTr.set(
+        r.translationId,
+        (translatedCountByTr.get(r.translationId) ?? 0) + 1,
+      );
+    }
+
+    return rows.map((r) => ({
+      translationId: r.translationId,
+      slug: r.slug,
+      targetLang: r.targetLang,
+      status: r.status,
+      license: r.translationLicense,
+      sourceId: r.sourceId,
+      title: r.title,
+      authors: r.authors,
+      sourceLicense: r.sourceLicense,
+      sourceVersion: r.sourceVersion,
+      importedAt: r.importedAt,
+      leadDisplayName: r.leadDisplayName,
+      segmentCount: segCountBySource.get(r.sourceId) ?? 0,
+      translatedCount: translatedCountByTr.get(r.translationId) ?? 0,
+    }));
   }
 }

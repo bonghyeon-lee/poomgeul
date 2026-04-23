@@ -1,13 +1,18 @@
-import { Controller, Get, Inject, NotFoundException, Param, Post } from "@nestjs/common";
+import { Controller, Get, Inject, NotFoundException, Param, Post, Query } from "@nestjs/common";
 import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 
-import { SourceRepository, type ReaderBundleRow } from "./source.repository.js";
+import {
+  SourceRepository,
+  type ReaderBundleRow,
+  type TranslationListItem,
+} from "./source.repository.js";
 import { SourceService, type ReprocessResult } from "./source.service.js";
 
 @ApiTags("translation")
@@ -18,6 +23,26 @@ export class TranslationsController {
     @Inject(SourceRepository) private readonly repo: SourceRepository,
     @Inject(SourceService) private readonly sourceService: SourceService,
   ) {}
+
+  @Get()
+  @ApiOperation({
+    summary: "List recent ko translations (newest first)",
+    description:
+      "Used by the /translations page to show registered translations. Includes " +
+      "per-row segmentCount and translatedCount so the UI can render progress hints.",
+  })
+  @ApiQuery({
+    name: "limit",
+    type: Number,
+    required: false,
+    description: "Max rows to return (1–200, default 50).",
+  })
+  @ApiOkResponse({ description: "Array of TranslationListItem." })
+  async list(@Query("limit") limit?: string): Promise<TranslationListItem[]> {
+    const parsed = limit !== undefined ? Number(limit) : undefined;
+    const sanitized = Number.isFinite(parsed) ? (parsed as number) : undefined;
+    return this.repo.listTranslations(sanitized !== undefined ? { limit: sanitized } : {});
+  }
 
   @Get(":slug")
   @ApiOperation({
