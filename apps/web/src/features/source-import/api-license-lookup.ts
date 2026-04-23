@@ -99,3 +99,68 @@ export async function lookupSourceLicense(parsed: ParsedSource): Promise<License
   }
   return body;
 }
+
+/**
+ * POST /api/sources — 번역본 생성(Source + Translation row).
+ *
+ * 서버는 다시 license lookup을 수행하고 allowed일 때만 생성한다. 이미 등록돼
+ * 있으면 outcome:"already-registered"로 기존 slug를 돌려준다. 그 외 실패
+ * outcome(blocked/not-found/upstream-error 등)은 lookup 경로와 동일한 shape로
+ * 되돌아온다.
+ */
+export type CreateSourceResult =
+  | {
+      outcome: "created";
+      sourceId: string;
+      translationId: string;
+      slug: string;
+      license: LicenseKind;
+      title: string;
+      version: string;
+    }
+  | {
+      outcome: "already-registered";
+      sourceId: string;
+      translationId: string;
+      slug: string;
+    }
+  | Exclude<LicenseLookupResult, { outcome: "allowed" }>;
+
+type CreateServerResult =
+  | Exclude<CreateSourceResult, { outcome: "network-error" }>
+  | { outcome: "invalid-input"; code: "empty" | "unsupported"; reason: string };
+
+export async function createSource(parsed: ParsedSource): Promise<CreateSourceResult> {
+  const input = rawInputFor(parsed);
+
+  let res: Response;
+  try {
+    res = await fetch("/api/sources", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ input }),
+    });
+  } catch (err) {
+    return {
+      outcome: "network-error",
+      reason:
+        err instanceof Error
+          ? `API 서버에 닿지 못했다: ${err.message}. dev 환경에서는 apps/api가 :3000에서 떠 있어야 한다.`
+          : "API 서버에 닿지 못했다.",
+    };
+  }
+
+  if (!res.ok) {
+    return {
+      outcome: "network-error",
+      reason: `API 오류: HTTP ${res.status}`,
+    };
+  }
+
+  const body = (await res.json()) as CreateServerResult;
+
+  if (body.outcome === "invalid-input") {
+    return { outcome: "not-found", reason: body.reason };
+  }
+  return body;
+}

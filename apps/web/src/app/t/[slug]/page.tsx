@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 import { Chip, LicenseBadge, Logo } from "@/components/ui";
 import {
@@ -14,6 +13,9 @@ import styles from "./page.module.css";
 
 type RouteParams = { slug: string };
 
+// mock 슬러그는 SSG로, Import로 새로 만들어진 슬러그는 런타임에 렌더한다.
+export const dynamicParams = true;
+
 export function generateStaticParams(): RouteParams[] {
   return listReaderSlugs().map((slug) => ({ slug }));
 }
@@ -25,7 +27,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const bundle = findReaderBundleBySlug(slug);
-  if (!bundle) return { title: "번역본을 찾을 수 없음 — poomgeul" };
+  if (!bundle) {
+    return {
+      title: `${slug} — 세그먼트 분할 대기 · poomgeul`,
+      robots: { index: false },
+    };
+  }
 
   const title = `${bundle.source.title} — 한국어 번역 (poomgeul)`;
   const description = `${bundle.source.author.join(", ")}의 ${bundle.source.sourceVersion} 판본을 한국어로 옮긴다. 리드: ${bundle.translation.leadDisplayName}.`;
@@ -43,7 +50,9 @@ export default async function ReaderPage({
 }) {
   const { slug } = await params;
   const bundle = findReaderBundleBySlug(slug);
-  if (!bundle) notFound();
+  if (!bundle) {
+    return <PendingSegmentsView slug={slug} />;
+  }
 
   const { source, segments, translation, translationSegments, contributors, proposals } = bundle;
 
@@ -172,6 +181,45 @@ export default async function ReaderPage({
             translation={translation}
             contributors={contributors}
           />
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function PendingSegmentsView({ slug }: { slug: string }) {
+  return (
+    <div className={styles.shell}>
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          <div className={styles.crumbs}>
+            <Logo variant="mark" href="/" ariaLabel="poomgeul 홈" />
+            <span className={styles.crumbsSep}>/</span>
+            <Link href="/">홈</Link>
+            <span className={styles.crumbsSep}>/</span>
+            <span>{slug}</span>
+          </div>
+          <div className={styles.headerMeta}>
+            <span className={styles.statusTag}>pending</span>
+          </div>
+        </div>
+      </header>
+
+      <main className={styles.main}>
+        <section className={styles.title}>
+          <h1 className={styles.paperTitle}>세그먼트 분할 대기 중</h1>
+          <p className={styles.byline}>slug: {slug}</p>
+        </section>
+        <section>
+          <div className={styles.sectionHeader}>
+            <h2>무슨 일이 일어났나</h2>
+          </div>
+          <p className={styles.notice}>
+            번역본 row는 만들어졌으나 원문 세그먼트 분할이 아직 끝나지 않았다.
+            M0 스펙 #3(ar5iv HTML 파싱)의 구현이 붙으면 이 페이지에 원문과
+            AI 초벌 번역이 나타난다. 직접 URL을 입력해 도착했다면 슬러그 오타일 수도 있으니{" "}
+            <Link href="/">홈</Link>에서 다시 시작할 수 있다.
+          </p>
         </section>
       </main>
     </div>

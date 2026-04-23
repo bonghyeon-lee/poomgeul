@@ -9,5 +9,5 @@ export type {
   SourceInputErrorCode,
 } from "./parse-source-input";
 
-export { lookupSourceLicense } from "./api-license-lookup";
-export type { LicenseLookupResult } from "./api-license-lookup";
+export { createSource, lookupSourceLicense } from "./api-license-lookup";
+export type { CreateSourceResult, LicenseLookupResult } from "./api-license-lookup";

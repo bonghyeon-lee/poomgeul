@@ -1,18 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { Button, Input, LicenseBadge, Logo } from "@/components/ui";
 import {
   SourceInputError,
+  createSource,
   lookupSourceLicense,
   parseSourceInput,
+  type CreateSourceResult,
   type LicenseLookupResult,
   type ParsedSource,
 } from "@/features/source-import";
 
 import styles from "./page.module.css";
+
+type CreationState =
+  | { phase: "idle" }
+  | { phase: "creating" }
+  | { phase: "error"; message: string };
 
 type FormStatus =
   | { phase: "idle" }
@@ -36,9 +44,28 @@ function formatErrorMessage(err: unknown): string {
   return "입력을 해석하는 중 알 수 없는 오류가 났다.";
 }
 
+function createErrorMessage(result: CreateSourceResult): string {
+  switch (result.outcome) {
+    case "blocked":
+      return `라이선스 문제로 생성이 차단됐다: ${result.reason}`;
+    case "not-found":
+      return `arXiv에서 찾을 수 없다: ${result.reason}`;
+    case "unsupported-format":
+      return `지원하지 않는 입력 형식이다: ${result.reason}`;
+    case "upstream-error":
+      return `arXiv 조회에 실패했다: ${result.reason}`;
+    case "network-error":
+      return `API 호출에 실패했다: ${result.reason}`;
+    default:
+      return "알 수 없는 오류";
+  }
+}
+
 export default function ImportPage() {
+  const router = useRouter();
   const [raw, setRaw] = useState("");
   const [status, setStatus] = useState<FormStatus>({ phase: "idle" });
+  const [creation, setCreation] = useState<CreationState>({ phase: "idle" });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,6 +81,7 @@ export default function ImportPage() {
       return;
     }
     setStatus({ phase: "looking-up", parsed });
+    setCreation({ phase: "idle" });
     const result = await lookupSourceLicense(parsed);
     setStatus({ phase: "result", parsed, result });
   }
@@ -61,6 +89,16 @@ export default function ImportPage() {
   function handleSampleClick(value: string) {
     setRaw(value);
     void runLookup(value);
+  }
+
+  async function handleCreate(parsed: ParsedSource) {
+    setCreation({ phase: "creating" });
+    const result = await createSource(parsed);
+    if (result.outcome === "created" || result.outcome === "already-registered") {
+      router.push(`/t/${result.slug}`);
+      return;
+    }
+    setCreation({ phase: "error", message: createErrorMessage(result) });
   }
 
   const inputError =
@@ -149,7 +187,12 @@ export default function ImportPage() {
           ) : null}
 
           {status.phase === "result" ? (
-            <ResultCard parsed={status.parsed} result={status.result} />
+            <ResultCard
+              parsed={status.parsed}
+              result={status.result}
+              creation={creation}
+              onCreate={handleCreate}
+            />
           ) : null}
         </section>
       </main>
@@ -160,9 +203,13 @@ export default function ImportPage() {
 function ResultCard({
   parsed,
   result,
+  creation,
+  onCreate,
 }: {
   parsed: ParsedSource;
   result: LicenseLookupResult;
+  creation: CreationState;
+  onCreate: (parsed: ParsedSource) => void;
 }) {
   if (result.outcome === "allowed") {
     const cardCls = result.alreadyRegistered
@@ -220,13 +267,19 @@ function ResultCard({
         ) : (
           <>
             <p className={styles.resultNote}>
-              등록 가능하다. 다음 단계에서 ar5iv HTML을 가져와 세그먼트로 분할한다.
+              등록 가능하다. 생성 직후엔 세그먼트가 비어 있고 ar5iv 파싱(M0 #3)은
+              다음 단계에서 붙는다.
             </p>
             <div className={styles.resultActions}>
-              <Button disabled>번역본 만들기</Button>
-              <span className={styles.resultNote}>
-                버튼은 API 연결 후 활성화된다.
-              </span>
+              <Button
+                onClick={() => onCreate(parsed)}
+                disabled={creation.phase === "creating"}
+              >
+                {creation.phase === "creating" ? "만드는 중…" : "번역본 만들기"}
+              </Button>
+              {creation.phase === "error" ? (
+                <span className={styles.resultNote}>{creation.message}</span>
+              ) : null}
             </div>
           </>
         )}
