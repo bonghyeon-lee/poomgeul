@@ -13,7 +13,11 @@ import {
   type ReaderBundleRow,
   type TranslationListItem,
 } from "./source.repository.js";
-import { SourceService, type ReprocessResult } from "./source.service.js";
+import {
+  SourceService,
+  type ReprocessResult,
+  type RetryFailedResult,
+} from "./source.service.js";
 
 @ApiTags("translation")
 @Controller("translations")
@@ -74,5 +78,20 @@ export class TranslationsController {
   @ApiOkResponse({ description: "Reprocess outcome union." })
   async reprocess(@Param("slug") slug: string): Promise<ReprocessResult> {
     return this.sourceService.reprocess(slug);
+  }
+
+  @Post(":slug/retry-failed")
+  @ApiOperation({
+    summary: "Retry only the failed (aiDraftText=null) translation segments",
+    description:
+      "Picks translation_segments where ai_draft_text IS NULL and the underlying segment.kind " +
+      "is not 'reference', sends them through the LLM batch pipeline, and UPDATEs the rows that " +
+      "succeeded. ar5iv re-fetch and segment re-splitting are NOT performed — only the draft " +
+      "layer is patched. Idempotent; safe to call repeatedly as quota becomes available.",
+  })
+  @ApiParam({ name: "slug", type: String })
+  @ApiOkResponse({ description: "Retry outcome union." })
+  async retryFailed(@Param("slug") slug: string): Promise<RetryFailedResult> {
+    return this.sourceService.retryFailedDrafts(slug);
   }
 }

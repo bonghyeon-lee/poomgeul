@@ -79,6 +79,20 @@ export type ReprocessResult =
   | { outcome: "not-found"; reason: string }
   | { outcome: "unsupported-format"; reason: string };
 
+export type RetryFailedResult =
+  | {
+      outcome: "retried";
+      translationId: string;
+      slug: string;
+      /** retry 대상이었던(실패한 non-reference) 세그먼트 수. */
+      attemptedCount: number;
+      draftStatus: "ok" | "skipped" | "partial" | "failed";
+      draftSucceeded: number;
+      draftFailed: number;
+    }
+  | { outcome: "nothing-to-retry"; translationId: string; slug: string }
+  | { outcome: "not-found"; reason: string };
+
 const DEV_SEED_EMAIL = "dev-seed@poomgeul.invalid";
 
 @Injectable()
@@ -461,6 +475,102 @@ export class SourceService {
       slug: tr.slug,
       segmentCount: parsedSegments.length,
       segmentationStatus,
+      draftStatus: draftResult.status,
+      draftSucceeded: draftResult.succeeded,
+      draftFailed: draftResult.failed,
+    };
+  }
+
+  /**
+   * 이미 등록된 번역본에서 aiDraftText=null이고 kind!='reference'인 세그먼트만 골라
+   * Gemini에 다시 보낸다. 성공한 세그먼트의 translation_segments row를 UPDATE하여
+   * ai_draft_text와 text, ai_draft_source를 채운다. 실패분은 그대로 남겨 다음 재시도에서
+   * 다시 대상이 된다.
+   *
+   * ar5iv 재fetch나 segments 재분할은 하지 않는다 — 원문 구조는 건드리지 않고 번역만 보강.
+   */
+  async retryFailedDrafts(slug: string): Promise<RetryFailedResult> {
+    return this.deduped(`retryFailed:slug:${slug}`, () => this.retryFailedDraftsInner(slug));
+  }
+
+  private async retryFailedDraftsInner(slug: string): Promise<RetryFailedResult> {
+    const trRow = await this.db
+      .select({
+        translationId: translations.translationId,
+        sourceId: translations.sourceId,
+        leadId: translations.leadId,
+        slug: translations.slug,
+      })
+      .from(translations)
+      .where(eq(translations.slug, slug))
+      .limit(1);
+    const tr = trRow[0];
+    if (!tr) {
+      return { outcome: "not-found", reason: `slug ${slug}에 해당하는 번역본이 없다.` };
+    }
+
+    // aiDraftText=null인 translation_segments + 연결된 segment(kind!='reference')만 모은다.
+    const candidates = await this.db
+      .select({
+        segmentId: segments.segmentId,
+        order: segments.order,
+        kind: segments.kind,
+        originalText: segments.originalText,
+        aiDraftText: translationSegments.aiDraftText,
+      })
+      .from(translationSegments)
+      .innerJoin(segments, eq(segments.segmentId, translationSegments.segmentId))
+      .where(eq(translationSegments.translationId, tr.translationId));
+
+    const failed = candidates.filter(
+      (r) => r.aiDraftText === null && r.kind !== "reference",
+    );
+    if (failed.length === 0) {
+      return { outcome: "nothing-to-retry", translationId: tr.translationId, slug: tr.slug };
+    }
+
+    const draftResult = await this.draft.draftAll(
+      failed.map((r) => ({
+        segmentId: r.segmentId,
+        order: r.order,
+        kind: r.kind,
+        originalText: r.originalText,
+      })),
+    );
+
+    // 번역 성공(aiDraftText != null)인 것만 UPDATE. 실패는 기존 null 유지.
+    const successes = draftResult.drafts.filter((d) => d.aiDraftText !== null);
+    if (successes.length > 0) {
+      await this.db.transaction(async (tx) => {
+        for (const d of successes) {
+          await tx
+            .update(translationSegments)
+            .set({
+              text: d.text,
+              aiDraftText: d.aiDraftText,
+              aiDraftSource: d.aiDraftSource,
+              lastEditorId: tr.leadId,
+              lastEditedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(translationSegments.translationId, tr.translationId),
+                eq(translationSegments.segmentId, d.segmentId),
+              ),
+            );
+        }
+      });
+    }
+
+    this.logger.log(
+      `retryFailedDrafts slug=${slug} · attempted=${failed.length} ok=${draftResult.succeeded} fail=${draftResult.failed}`,
+    );
+
+    return {
+      outcome: "retried",
+      translationId: tr.translationId,
+      slug: tr.slug,
+      attemptedCount: failed.length,
       draftStatus: draftResult.status,
       draftSucceeded: draftResult.succeeded,
       draftFailed: draftResult.failed,
