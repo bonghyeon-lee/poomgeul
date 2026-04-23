@@ -1,11 +1,15 @@
 import { Ar5ivFetcher, Ar5ivNotFoundError, Ar5ivUpstreamError } from "./ar5iv-fetcher.js";
 
-function mockFetchOnce(body: string, init: Partial<Response> = {}): void {
+function mockFetchOnce(
+  body: string,
+  init: Partial<Response> & { finalUrl?: string } = {},
+): void {
   globalThis.fetch = jest.fn(async () => {
     const status = init.status ?? 200;
     return {
       ok: status >= 200 && status < 300,
       status,
+      url: init.finalUrl ?? "https://ar5iv.labs.arxiv.org/html/x",
       text: async () => body,
     } as Response;
   });
@@ -29,6 +33,16 @@ describe("Ar5ivFetcher.fetchHtml", () => {
     await expect(new Ar5ivFetcher().fetchHtml("9999.99999")).rejects.toBeInstanceOf(
       Ar5ivNotFoundError,
     );
+  });
+
+  it("throws Ar5ivNotFoundError when ar5iv follow-redirects to arxiv.org/abs (render unsupported)", async () => {
+    mockFetchOnce("<html>abs page, not ar5iv</html>", {
+      status: 200,
+      finalUrl: "https://arxiv.org/abs/2604.00295",
+    });
+    await expect(
+      new Ar5ivFetcher().fetchHtml("2604.00295"),
+    ).rejects.toBeInstanceOf(Ar5ivNotFoundError);
   });
 
   it("throws Ar5ivUpstreamError on 5xx", async () => {

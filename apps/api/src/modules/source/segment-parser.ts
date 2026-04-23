@@ -213,13 +213,13 @@ export function splitSentences(text: string): string[] {
       endOfText ||
       (peekIsSpace &&
         (afterNext === undefined ||
-          /[A-Z0-9§⟦"'“‘(\[]/.test(afterNext) ||
+          /[A-Z0-9§⟦"'“‘([]/.test(afterNext) ||
           afterNext === " "));
 
     if (!peekIsBoundary) continue;
 
     // 약어 체크: 버퍼의 끝 단어가 known abbreviation이면 경계 아님.
-    const tailWord = buffer.match(/([A-Za-z\.]+\.)\s*$/);
+    const tailWord = buffer.match(/([A-Za-z.]+\.)\s*$/);
     if (tailWord && ABBREVIATIONS.has(tailWord[1]!.toLowerCase())) continue;
 
     // 괜찮으면 문장 하나 완성.

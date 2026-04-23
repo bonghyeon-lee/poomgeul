@@ -44,10 +44,13 @@ export class Ar5ivFetcher {
 
     let res: Response;
     try {
+      // redirect를 따라가되, 최종 URL이 arxiv.org/abs로 튀었다면 ar5iv가 이 논문을
+      // 렌더하지 못한 것으로 판단(ar5iv의 공식 동작: 실패 시 abs로 리다이렉트).
       res = await fetch(url, {
         method: "GET",
         headers: { accept: "text/html" },
         signal: controller.signal,
+        redirect: "follow",
       });
     } catch (err) {
       clearTimeout(timer);
@@ -61,6 +64,23 @@ export class Ar5ivFetcher {
     if (res.status === 404) {
       throw new Ar5ivNotFoundError(bareId);
     }
+
+    // ar5iv가 렌더 실패 시 arxiv.org/abs로 리다이렉트 → 최종 URL이 ar5iv가 아니면 not-found.
+    // (ar5iv.labs.arxiv.org 호스트가 아닌 응답은 우리 파서가 처리할 수 없다.)
+    try {
+      const finalHost = new URL(res.url).hostname;
+      if (!finalHost.includes("ar5iv")) {
+        throw new Ar5ivNotFoundError(bareId);
+      }
+    } catch (err) {
+      if (err instanceof Ar5ivNotFoundError) throw err;
+      // new URL 실패 같은 경우는 네트워크 에러로.
+      throw new Ar5ivUpstreamError(
+        `ar5iv response had unparseable URL ${res.url}`,
+        err,
+      );
+    }
+
     if (!res.ok) {
       throw new Ar5ivUpstreamError(`ar5iv responded with HTTP ${res.status}`);
     }
