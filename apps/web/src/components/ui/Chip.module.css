@@ -1,0 +1,63 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  letter-spacing: var(--tracking-wide);
+  border: 1px solid transparent;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+}
+
+.open {
+  background: var(--color-open-soft);
+  color: var(--color-open);
+  border-color: var(--dak-100);
+}
+.open .dot {
+  background: var(--color-open);
+}
+
+.merged {
+  background: var(--color-merged-soft);
+  color: var(--color-merged);
+  border-color: var(--moss-100);
+}
+.merged .dot {
+  background: var(--color-merged);
+}
+
+.rejected {
+  background: var(--color-rejected-soft);
+  color: var(--color-rejected);
+  border-color: var(--seal-100);
+}
+.rejected .dot {
+  background: var(--color-rejected);
+}
+
+.stale {
+  background: var(--color-stale-soft);
+  color: var(--color-stale);
+  border-color: var(--ochre-100);
+}
+.stale .dot {
+  background: var(--color-stale);
+}
+
+.withdrawn {
+  background: var(--color-withdrawn-soft);
+  color: var(--color-withdrawn);
+  border-color: var(--border);
+  font-style: italic;
+}
+.withdrawn .dot {
+  background: var(--color-withdrawn);
+}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 48" width="140" height="48" fill="none">
+  <rect x="4" y="4" width="30" height="40" rx="2" fill="#FAF7F2" stroke="#5B3A23" stroke-width="2.5"></rect>
+  <path d="M34 4 L40 10 L34 10 Z" fill="#5B3A23"></path>
+  <path d="M34 4 L40 10" stroke="#5B3A23" stroke-width="2.5" stroke-linejoin="round"></path>
+  <path d="M11 16 H27 M11 32 H27 M15 16 V32 M23 16 V32" stroke="#5B3A23" stroke-width="2.5" stroke-linecap="square"></path>
+  <text x="56" y="33" font-family="Noto Serif KR, serif" font-size="26" font-weight="900" fill="#1A1915">품글</text>
+</svg>

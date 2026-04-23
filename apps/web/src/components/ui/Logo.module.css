@@ -1,0 +1,13 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.logo img {
+  height: 28px;
+  width: auto;
+  display: block;
+}

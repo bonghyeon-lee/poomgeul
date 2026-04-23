@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import "./globals.css";
+
 export const metadata: Metadata = {
   title: "poomgeul",
   description: "공개 텍스트를 위한 오픈소스 번역 플랫폼",
