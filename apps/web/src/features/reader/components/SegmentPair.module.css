@@ -1,0 +1,124 @@
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--border-muted);
+  position: relative;
+}
+
+.pair:first-of-type {
+  border-top: none;
+}
+
+@media (max-width: 880px) {
+  .pair {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-fg-subtle);
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.metaCounter {
+  color: var(--color-fg-faint);
+}
+
+.metaDivider {
+  color: var(--color-fg-faint);
+}
+
+.text {
+  font-size: var(--fs-18);
+  text-wrap: pretty;
+}
+
+.textOriginal {
+  font-family: var(--font-serif);
+  line-height: var(--lh-relaxed);
+  color: var(--color-fg);
+}
+
+.textTranslation {
+  font-family: var(--font-serif-ko);
+  line-height: var(--lh-loose);
+  color: var(--color-fg);
+  word-break: keep-all;
+}
+
+/* Kind-specific treatments */
+.kindCaption .text {
+  font-size: var(--fs-14);
+  color: var(--color-fg-muted);
+  font-style: italic;
+}
+
+.kindFootnote .text {
+  font-size: var(--fs-14);
+  color: var(--color-fg-muted);
+}
+
+.kindReference .text {
+  font-size: var(--fs-13);
+  color: var(--color-fg-muted);
+  font-family: var(--font-mono);
+  line-height: var(--lh-relaxed);
+  word-break: break-word;
+}
+
+.kindReference .textTranslation {
+  font-family: var(--font-mono);
+}
+
+/* Status / draft signals */
+.aiDraft {
+  color: var(--color-ai-draft);
+  background: var(--color-ai-draft-soft);
+  border: 1px solid var(--ochre-100);
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  letter-spacing: var(--tracking-wide);
+}
+
+.humanEdited {
+  color: var(--color-human-edit);
+  background: var(--color-human-edit-soft);
+  border: 1px solid var(--moss-100);
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  letter-spacing: var(--tracking-wide);
+}
+
+.locked {
+  color: var(--color-fg-subtle);
+  background: var(--paper-200);
+  border: 1px dashed var(--border-strong);
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  letter-spacing: var(--tracking-wide);
+}
+
+.proposalChip {
+  margin-left: auto;
+}
