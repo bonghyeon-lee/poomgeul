@@ -1,0 +1,107 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-md);
+}
+
+.stageLine {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.stage {
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  color: var(--color-fg);
+}
+
+.elapsed {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--color-fg-subtle);
+}
+
+.stageDetail {
+  font-size: var(--fs-12);
+  color: var(--color-fg-muted);
+  line-height: var(--lh-relaxed);
+  word-break: keep-all;
+}
+
+.dots::after {
+  content: "…";
+  display: inline-block;
+  min-width: 1.5em;
+  text-align: left;
+  animation: ellipsis 1.4s infinite;
+}
+
+@keyframes ellipsis {
+  0% { content: ""; }
+  25% { content: "."; }
+  50% { content: ".."; }
+  75% { content: "…"; }
+  100% { content: "…"; }
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--moss-100);
+  background: var(--color-merged-soft);
+  border-radius: var(--radius-md);
+}
+
+.summaryWarn {
+  border-color: var(--ochre-100);
+  background: var(--color-stale-soft);
+}
+
+.summaryErr {
+  border-color: var(--seal-100);
+  background: var(--color-rejected-soft);
+}
+
+.summaryHead {
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  color: var(--color-fg);
+}
+
+.summaryBody {
+  font-size: var(--fs-13);
+  line-height: var(--lh-relaxed);
+  color: var(--color-fg-muted);
+  word-break: keep-all;
+}
+
+.summaryStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--color-fg-subtle);
+}
+
+.errorMsg {
+  font-size: var(--fs-13);
+  color: var(--color-accent);
+  line-height: var(--lh-relaxed);
+  word-break: keep-all;
+}

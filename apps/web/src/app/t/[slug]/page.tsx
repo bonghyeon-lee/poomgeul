@@ -232,10 +232,10 @@ function PendingSegmentsView({ slug }: { slug: string }) {
             도착했는데 슬러그가 없는 경우다. arXiv 원문이라면 아래 버튼으로 ar5iv에서
             다시 가져와 Gemini 초벌까지 다시 채울 수 있다. 호출 수에 비례해 시간이 걸린다.
           </p>
-          <div style={{ marginTop: "var(--space-4)" }}>
+          <div className={styles.reprocessWrap}>
             <ReprocessButton slug={slug} />
           </div>
-          <p className={styles.notice} style={{ marginTop: "var(--space-3)" }}>
+          <p className={`${styles.notice} ${styles.noticeSpaced}`}>
             슬러그 오타라면 <Link href="/">홈</Link>에서 다시 시작할 수 있다.
           </p>
         </section>

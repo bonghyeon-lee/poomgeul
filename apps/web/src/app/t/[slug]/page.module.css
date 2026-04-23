@@ -143,6 +143,14 @@
   word-break: keep-all;
 }
 
+.noticeSpaced {
+  margin-top: var(--space-3);
+}
+
+.reprocessWrap {
+  margin-top: var(--space-4);
+}
+
 .proposalRow {
   display: flex;
   align-items: center;
