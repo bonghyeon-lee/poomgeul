@@ -38,24 +38,24 @@ const SAMPLES: Array<{ label: string; value: string; kind: string }> = [
 
 function formatErrorMessage(err: unknown): string {
   if (err instanceof SourceInputError) {
-    if (err.code === "empty") return "arXiv ID나 URL을 입력한다.";
-    return "인식할 수 없는 입력이다. 2310.12345 또는 https://arxiv.org/abs/... 형태로 넣는다.";
+    if (err.code === "empty") return "arXiv ID나 URL을 입력해 주세요.";
+    return "인식할 수 없는 입력입니다. 2310.12345 또는 https://arxiv.org/abs/... 형태로 넣어주세요.";
   }
-  return "입력을 해석하는 중 알 수 없는 오류가 났다.";
+  return "입력을 해석하는 중 알 수 없는 오류가 발생했습니다.";
 }
 
 function createErrorMessage(result: CreateSourceResult): string {
   switch (result.outcome) {
     case "blocked":
-      return `라이선스 문제로 생성이 차단됐다: ${result.reason}`;
+      return `라이선스 문제로 생성이 차단되었습니다: ${result.reason}`;
     case "not-found":
-      return `arXiv에서 찾을 수 없다: ${result.reason}`;
+      return `arXiv에서 찾을 수 없습니다: ${result.reason}`;
     case "unsupported-format":
-      return `지원하지 않는 입력 형식이다: ${result.reason}`;
+      return `지원하지 않는 입력 형식입니다: ${result.reason}`;
     case "upstream-error":
-      return `arXiv 조회에 실패했다: ${result.reason}`;
+      return `arXiv 조회에 실패했습니다: ${result.reason}`;
     case "network-error":
-      return `API 호출에 실패했다: ${result.reason}`;
+      return `API 호출에 실패했습니다: ${result.reason}`;
     default:
       return "알 수 없는 오류";
   }
@@ -122,8 +122,8 @@ export default function ImportPage() {
         <section className={styles.title}>
           <h1>원문 가져오기</h1>
           <p className={styles.titleLead}>
-            arXiv ID · arXiv URL · DOI를 붙여넣으면 라이선스를 자동으로 검증한다.
-            CC BY와 CC BY-SA, 퍼블릭 도메인만 번역본 등록이 가능하다.
+            arXiv ID · arXiv URL · DOI를 붙여넣으면 라이선스를 자동으로 검증합니다.
+            CC BY와 CC BY-SA, 퍼블릭 도메인만 번역본 등록이 가능합니다.
           </p>
         </section>
 
@@ -153,8 +153,8 @@ export default function ImportPage() {
           </div>
           <div className={styles.formFooter}>
             입력은 <code>GET /api/sources/license</code>를 거쳐 실제 arXiv Query API로
-            조회된다. arXiv 대부분의 논문은 CC가 아닌 기본 non-exclusive 라이선스여서
-            차단 결과가 일반적이다. 등록(번역본 생성)은 API가 붙을 때까지 비활성.
+            조회됩니다. arXiv 대부분의 논문은 CC가 아닌 기본 non-exclusive 라이선스여서
+            차단 결과가 일반적입니다. 등록(번역본 생성)은 API 연동 완료 후 활성화됩니다.
           </div>
         </form>
 
@@ -179,7 +179,7 @@ export default function ImportPage() {
           {status.phase === "looking-up" ? (
             <div className={styles.skeleton}>
               <span className={styles.skeletonDot} aria-hidden="true" />
-              라이선스 조회 중…{" "}
+              라이선스 조회 중입니다…{" "}
               {status.parsed.kind === "arxiv"
                 ? `arxiv:${status.parsed.bareId}${status.parsed.version ? `v${status.parsed.version}` : ""}`
                 : `doi:${status.parsed.id}`}
@@ -243,7 +243,7 @@ function ResultCard({
             {result.shareAlike ? (
               <span className={styles.resultNote}>
                 CC BY-SA는 ShareAlike 조건이 승계되어{" "}
-                <span className={styles.resultStrong}>자동 고정</span>된다.
+                <span className={styles.resultStrong}>자동 고정</span>됩니다.
               </span>
             ) : null}
           </dd>
@@ -252,8 +252,8 @@ function ResultCard({
         {result.alreadyRegistered ? (
           <>
             <p className={styles.resultNote}>
-              이 원문은 이미 번역본이 등록되어 있다. 같은{" "}
-              <code>(attribution_source, source_version)</code>은 중복 등록할 수 없다.
+              이 원문은 이미 번역본이 등록되어 있습니다. 같은{" "}
+              <code>(attribution_source, source_version)</code>은 중복 등록할 수 없습니다.
             </p>
             <div className={styles.resultActions}>
               {result.registeredSlug ? (
@@ -267,8 +267,8 @@ function ResultCard({
         ) : (
           <>
             <p className={styles.resultNote}>
-              등록 가능하다. 생성 직후엔 세그먼트가 비어 있고 ar5iv 파싱(M0 #3)은
-              다음 단계에서 붙는다.
+              등록 가능합니다. 생성 직후엔 세그먼트가 비어 있고 ar5iv 파싱(M0 #3)은
+              다음 단계에서 진행됩니다.
             </p>
             <div className={styles.resultActions}>
               <Button
@@ -316,7 +316,7 @@ function ResultCard({
         <div className={styles.resultHead}>
           <h2 className={styles.resultTitle}>DOI는 M1에 지원</h2>
         </div>
-        <p className={styles.resultNote}>{result.reason}</p>
+        <p className={styles.resultNote}>DOI는 현재 지원 준비 중입니다. M1 단계에서 지원할 예정입니다.</p>
       </div>
     );
   }
@@ -325,7 +325,7 @@ function ResultCard({
     return (
       <div className={`${styles.resultCard} ${styles.resultCardBlocked}`}>
         <div className={styles.resultHead}>
-          <h2 className={styles.resultTitle}>arXiv 조회 실패</h2>
+          <h2 className={styles.resultTitle}>arXiv 조회에 실패했습니다</h2>
         </div>
         <p className={styles.resultNote}>{result.reason}</p>
       </div>
@@ -336,7 +336,7 @@ function ResultCard({
     return (
       <div className={`${styles.resultCard} ${styles.resultCardBlocked}`}>
         <div className={styles.resultHead}>
-          <h2 className={styles.resultTitle}>API 호출 실패</h2>
+          <h2 className={styles.resultTitle}>API 호출에 실패했습니다</h2>
         </div>
         <p className={styles.resultNote}>{result.reason}</p>
       </div>
@@ -346,7 +346,7 @@ function ResultCard({
   return (
     <div className={`${styles.resultCard} ${styles.resultCardWarn}`}>
       <div className={styles.resultHead}>
-        <h2 className={styles.resultTitle}>찾을 수 없음</h2>
+        <h2 className={styles.resultTitle}>원문을 찾을 수 없습니다</h2>
       </div>
       <p className={styles.resultNote}>{result.reason}</p>
     </div>

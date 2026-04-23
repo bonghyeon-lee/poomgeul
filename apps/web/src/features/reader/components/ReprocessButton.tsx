@@ -74,7 +74,7 @@ export function ReprocessButton({ slug }: { slug: string }) {
     } catch (err) {
       setState({
         phase: "error",
-        message: `API에 닿지 못했다: ${err instanceof Error ? err.message : String(err)}`,
+        message: `API에 연결하지 못했습니다: ${err instanceof Error ? err.message : String(err)}`,
       });
       return;
     }
@@ -160,34 +160,34 @@ function estimateStage(elapsedMs: number): { label: string; detail: string } {
   if (elapsedMs < 4_000) {
     return {
       label: "ar5iv HTML 가져오는 중",
-      detail: "arXiv의 ar5iv 미러에서 논문 HTML을 받고 있다. 처음 수 초가 걸릴 수 있다.",
+      detail: "arXiv의 ar5iv 미러에서 논문 HTML을 가져오고 있습니다. 처음 수 초간 시간이 소요될 수 있습니다.",
     };
   }
   if (elapsedMs < 8_000) {
     return {
       label: "세그먼트 분할 중",
       detail:
-        "본문 문단을 문장 단위로 쪼개고 있다. 수식·캡션·참고문헌을 종류별로 분류한다.",
+        "본문 문단을 문장 단위로 분할하고 있습니다. 수식·캡션·참고문헌을 종류별로 분류합니다.",
     };
   }
   if (elapsedMs < 20_000) {
     return {
       label: "AI 초벌 번역 중",
       detail:
-        "세그먼트 하나당 약 2초씩 Gemini 2.5 Flash에 보낸다. 세그먼트 수에 비례해 시간이 늘어난다.",
+        "세그먼트 하나당 약 2초씩 Gemini 2.5 Flash로 요청을 보냅니다. 세그먼트 수에 비례하여 시간이 소요됩니다.",
     };
   }
   if (elapsedMs < 90_000) {
     return {
       label: "AI 초벌 번역 중 (긴 논문)",
       detail:
-        "초벌이 아직 끝나지 않았다. 수십 개 세그먼트가 순차 처리된다. rate limit에 걸리면 일부가 원문 유지로 떨어진다.",
+        "초벌 번역이 아직 진행 중입니다. 수십 개의 세그먼트가 순차적으로 처리됩니다. 할당량(rate limit)에 도달하면 일부는 원문으로 유지될 수 있습니다.",
     };
   }
   return {
     label: "거의 끝나가는 중",
     detail:
-      "예상보다 오래 걸리는 중이다. Gemini가 rate limit이거나 네트워크가 느릴 수 있다. 응답이 오면 결과가 표시된다.",
+      "예상보다 시간이 다소 소요되고 있습니다. Gemini API 할당량 문제이거나 네트워크가 불안정할 수 있습니다. 응답이 도착하는 대로 결과가 표시됩니다.",
   };
 }
 
@@ -211,36 +211,36 @@ function summaryClass(result: ReprocessSuccess): string {
 function summaryHeadline(result: ReprocessSuccess): string {
   if (result.segmentCount === 0) {
     if (result.segmentationStatus === "upstream-error") {
-      return "ar5iv 호출 실패";
+      return "ar5iv 호출에 실패했습니다";
     }
     // skipped: ar5iv가 이 논문을 렌더하지 못해 arxiv.org/abs로 리다이렉트한 경우가 대부분.
-    return "ar5iv가 이 논문을 지원하지 않음";
+    return "ar5iv에서 이 논문을 지원하지 않습니다";
   }
-  if (result.draftStatus === "failed") return "초벌 번역 전부 실패";
-  if (result.draftStatus === "partial") return "재처리 완료 — 일부 번역 실패";
-  if (result.draftStatus === "skipped") return "재처리 완료 — 번역은 건너뜀(API 키 미설정)";
-  return "재처리 완료";
+  if (result.draftStatus === "failed") return "초벌 번역에 모두 실패했습니다";
+  if (result.draftStatus === "partial") return "재처리가 완료되었습니다 (일부 번역 실패)";
+  if (result.draftStatus === "skipped") return "재처리가 완료되었습니다 (번역 건너뜀 - API 키 미설정)";
+  return "재처리가 완료되었습니다";
 }
 
 function summaryBody(result: ReprocessSuccess): string {
   if (result.segmentCount === 0) {
     if (result.segmentationStatus === "upstream-error") {
-      return "ar5iv 서버가 5xx를 돌려줬다. 일시적 장애일 수 있으니 잠시 후 다시 재처리해본다.";
+      return "ar5iv 서버가 5xx 오류를 반환했습니다. 일시적인 장애일 수 있으니 잠시 후 다시 시도해 주세요.";
     }
     return (
-      "ar5iv 미러가 이 논문의 HTML 렌더를 제공하지 않는다(보통 수식이 많거나 최신 업로드 직후 논문). " +
-      "M0에서는 ar5iv만 쓰고 있으니 이 논문은 번역 대상이 될 수 없다. " +
-      "M1에서 PDF 기반 파서가 붙으면 다시 시도 가능하다."
+      "ar5iv 미러가 이 논문의 HTML 렌더링을 제공하지 않습니다(수식이 매우 복잡하거나 최신 논문인 경우). " +
+      "현재 버전에서는 ar5iv 기반 파서만 사용하므로 이 논문은 번역 대상이 될 수 없습니다. " +
+      "M1 단계에서 PDF 기반 파서가 지원되면 다시 시도하실 수 있습니다."
     );
   }
   if (result.draftStatus === "failed") {
-    return `${result.segmentCount}개 세그먼트 전부에 대해 초벌이 실패했다. 실패한 세그먼트는 원문이 그대로 text에 남는다. GEMINI_API_KEY와 rate limit을 확인한다.`;
+    return `${result.segmentCount}개 세그먼트 전부에 대해 초벌 번역이 실패했습니다. 실패한 세그먼트는 원문 그대로 유지됩니다. API 키 설정과 할당량을 확인해 주세요.`;
   }
   if (result.draftStatus === "partial") {
-    return `${result.segmentCount}개 세그먼트 중 ${result.draftSucceeded}개는 번역, ${result.draftFailed}개는 원문 유지로 들어갔다. 실패분은 나중에 개별 재생성 기능이 붙으면 되살릴 수 있다.`;
+    return `${result.segmentCount}개 세그먼트 중 ${result.draftSucceeded}개는 번역되었고, ${result.draftFailed}개는 원문으로 유지되었습니다. 실패한 부분은 추후 개별 재시도 기능을 통해 보완하실 수 있습니다.`;
   }
   if (result.draftStatus === "skipped") {
-    return `${result.segmentCount}개 세그먼트가 분할됐지만 GEMINI_API_KEY가 비어 있어 번역을 건너뛰었다. 원문만 채워진 상태다.`;
+    return `${result.segmentCount}개 세그먼트가 분할되었으나, API 키가 설정되지 않아 번역을 건너뛰었습니다. 현재 원문만 채워진 상태입니다.`;
   }
-  return `${result.segmentCount}개 세그먼트 모두 분할되었고, ${result.draftSucceeded}개 모두 Gemini 초벌이 생성되었다.`;
+  return `${result.segmentCount}개 세그먼트가 모두 분할되었으며, ${result.draftSucceeded}개 모두 Gemini 초벌 번역이 생성되었습니다.`;
 }

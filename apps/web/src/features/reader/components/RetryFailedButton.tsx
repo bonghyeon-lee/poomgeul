@@ -74,7 +74,7 @@ export function RetryFailedButton({
     } catch (err) {
       setState({
         phase: "error",
-        message: `API에 닿지 못했다: ${err instanceof Error ? err.message : String(err)}`,
+        message: `API에 연결하지 못했습니다: ${err instanceof Error ? err.message : String(err)}`,
       });
       return;
     }
@@ -122,7 +122,7 @@ export function RetryFailedButton({
       ) : null}
 
       {state.phase === "done-nothing" ? (
-        <p className={styles.stageDetail}>번역이 실패한 세그먼트가 없어 재시도할 대상이 없다.</p>
+        <p className={styles.stageDetail}>번역이 실패한 세그먼트가 없어 재시도할 대상이 없습니다.</p>
       ) : null}
 
       {state.phase === "error" ? (
@@ -146,12 +146,12 @@ function RunningView({
     <div className={styles.progress} role="status" aria-live="polite">
       <div className={styles.stageLine}>
         <span className={styles.stage}>
-          <span className={styles.dots}>실패한 {attempted}개 세그먼트를 묶어 다시 번역 중</span>
+          <span className={styles.dots}>실패한 {attempted}개 세그먼트를 묶어 다시 번역 중입니다</span>
         </span>
         <span className={styles.elapsed}>{formatElapsed(elapsedMs)}</span>
       </div>
       <span className={styles.stageDetail}>
-        세그먼트 8개씩 묶어 Gemini에 보낸다. 호출 간 4s 간격이 강제되니 분량이 많으면 몇 분 걸릴 수 있다.
+        세그먼트 8개씩 묶어 Gemini로 요청을 보냅니다. 호출 간 4초의 간격이 강제되므로 분량이 많으면 몇 분 정도 소요될 수 있습니다.
       </span>
     </div>
   );
@@ -183,23 +183,23 @@ function summaryClass(result: RetrySuccess): string {
 }
 
 function summaryHeadline(result: RetrySuccess): string {
-  if (result.draftStatus === "failed") return "모든 재시도가 실패";
-  if (result.draftStatus === "partial") return "일부는 살렸고 일부는 또 실패";
-  if (result.draftStatus === "skipped") return "번역 건너뜀 (API 키 미설정)";
-  return "재시도 성공";
+  if (result.draftStatus === "failed") return "모든 재시도가 실패했습니다";
+  if (result.draftStatus === "partial") return "일부는 복구되었으나 일부는 다시 실패했습니다";
+  if (result.draftStatus === "skipped") return "번역을 건너뛰었습니다 (API 키 미설정)";
+  return "재시도에 성공했습니다";
 }
 
 function summaryBody(result: RetrySuccess): string {
   if (result.draftStatus === "failed") {
-    return `${result.attemptedCount}개 세그먼트 전부 또 실패했다. Gemini 쿼터 복구를 기다린 후 다시 시도한다.`;
+    return `${result.attemptedCount}개 세그먼트 모두 다시 실패했습니다. Gemini 할당량 복구를 기다린 후 다시 시도해 주세요.`;
   }
   if (result.draftStatus === "partial") {
-    return `${result.attemptedCount}개 중 ${result.draftSucceeded}개 번역됨, ${result.draftFailed}개는 여전히 원문. 남은 실패분은 이후 다시 재시도하면 됨.`;
+    return `${result.attemptedCount}개 중 ${result.draftSucceeded}개는 번역되었고, ${result.draftFailed}개는 여전히 원문 상태입니다. 남은 실패분은 이후에 다시 재시도하실 수 있습니다.`;
   }
   if (result.draftStatus === "skipped") {
-    return `GEMINI_API_KEY가 비어 있어 번역이 건너뛰어졌다.`;
+    return `API 키가 설정되지 않아 번역을 건너뛰었습니다.`;
   }
-  return `${result.attemptedCount}개 세그먼트 모두 번역됨.`;
+  return `${result.attemptedCount}개 세그먼트가 모두 번역되었습니다.`;
 }
 
 function formatElapsed(ms: number): string {

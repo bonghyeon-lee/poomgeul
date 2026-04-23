@@ -82,7 +82,7 @@
   font-weight: 400;
   color: var(--color-fg);
   font-variation-settings: "opsz" 48;
-  max-width: 18ch;
+  max-width: 30ch;
 }
 
 .heroAccent {

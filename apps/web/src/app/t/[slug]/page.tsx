@@ -44,7 +44,7 @@ export async function generateMetadata({
   }
 
   const title = `${bundle.source.title} — 한국어 번역 (poomgeul)`;
-  const description = `${bundle.source.author.join(", ")}의 ${bundle.source.sourceVersion} 판본을 한국어로 옮긴다. 리드: ${bundle.translation.leadDisplayName}.`;
+  const description = `${bundle.source.author.join(", ")}의 ${bundle.source.sourceVersion} 판본을 한국어로 옮깁니다. 리드: ${bundle.translation.leadDisplayName}.`;
   return {
     title,
     description,
@@ -209,8 +209,8 @@ export default async function ReaderPage({
           </div>
           {proposals.length === 0 ? (
             <p className={styles.notice}>
-              아직 제안이 없다. 번역을 읽다가 개선할 곳을 찾으면 세그먼트 옆의
-              &lsquo;제안하기&rsquo;를 누르자.
+              아직 등록된 제안이 없습니다. 번역을 읽다가 개선할 부분을 발견하시면 세그먼트 옆의
+              &lsquo;제안하기&rsquo;를 눌러주세요.
             </p>
           ) : (
             <div>
@@ -272,16 +272,16 @@ function PendingSegmentsView({ slug }: { slug: string }) {
             <h2>무슨 일이 일어났나</h2>
           </div>
           <p className={styles.notice}>
-            번역본 row는 만들어졌으나 원문 세그먼트 분할과 AI 초벌이 아직 비어 있다.
-            등록 당시에 파서·LLM이 없었거나, 당시 호출이 실패했거나, 직접 URL을 입력해
-            도착했는데 슬러그가 없는 경우다. arXiv 원문이라면 아래 버튼으로 ar5iv에서
-            다시 가져와 Gemini 초벌까지 다시 채울 수 있다. 호출 수에 비례해 시간이 걸린다.
+            번역본 데이터는 생성되었으나 원문 세그먼트 분할과 AI 초벌 번역이 아직 진행되지 않았습니다.
+            등록 당시에 파서 또는 LLM 오류가 있었거나, 호출이 실패했거나, 잘못된 슬러그로 접속한 경우일 수 있습니다.
+            arXiv 원문이라면 아래 버튼으로 ar5iv에서 다시 가져와 Gemini 초벌까지 다시 생성할 수 있습니다.
+            분량에 따라 다소 시간이 소요될 수 있습니다.
           </p>
           <div className={styles.reprocessWrap}>
             <ReprocessButton slug={slug} />
           </div>
           <p className={`${styles.notice} ${styles.noticeSpaced}`}>
-            슬러그 오타라면 <Link href="/">홈</Link>에서 다시 시작할 수 있다.
+            슬러그 오타인 경우 <Link href="/">홈</Link>에서 다시 시작하실 수 있습니다.
           </p>
         </section>
       </main>
