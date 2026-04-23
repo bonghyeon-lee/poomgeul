@@ -5,11 +5,11 @@
  * Atom 메타를 가져와 라이선스 URL을 내부 kind로 정규화하고, 정책
  * (policy/licensing.md)에 따라 outcome을 결정한다. DOI는 M1까지 unsupported.
  *
- * alreadyRegistered 판정은 당장은 REGISTERED_SLUGS 상수로만 수행한다.
- * Translation 테이블이 시드되면 DB 조회로 교체한다(다음 스텝).
+ * alreadyRegistered 판정은 SourceRepository.findRegisteredByArxivBareId로
+ * DB를 조회해 기존 번역본의 slug를 돌려준다. Translation 행이 없으면 false.
  */
 
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 
 import {
   ArxivClient,
@@ -19,6 +19,7 @@ import {
   normalizeLicenseUrl,
 } from "./arxiv-client.js";
 import type { ParsedSource } from "./input.js";
+import { SourceRepository } from "./source.repository.js";
 
 export type AllowedLicense = "CC-BY" | "CC-BY-SA" | "PD";
 export type BlockedLicense = "CC-BY-ND" | "CC-BY-NC-ND" | "CC-BY-NC";
@@ -54,14 +55,6 @@ export type LicenseLookupResult =
       reason: string;
     };
 
-/**
- * M0에서는 이 표 하나만으로 중복 등록을 재현한다. Reader의 샘플 번들과 싱크.
- * Translation 테이블이 채워지면 이 상수는 지우고 DB 조회(`translationRepo.findBySlug`)로 교체.
- */
-const REGISTERED_SLUGS: Record<string, string> = {
-  "2310.12345": "sparse-moe-low-resource-mt",
-};
-
 export const ARXIV_CLIENT = Symbol("ARXIV_CLIENT");
 
 function isAllowedLicense(kind: NormalizedLicense): kind is AllowedLicense {
@@ -70,7 +63,13 @@ function isAllowedLicense(kind: NormalizedLicense): kind is AllowedLicense {
 
 @Injectable()
 export class LicenseLookupService {
-  constructor(@Inject(ARXIV_CLIENT) private readonly arxiv: ArxivClient) {}
+  private readonly logger = new Logger(LicenseLookupService.name);
+
+  constructor(
+    @Inject(ARXIV_CLIENT) private readonly arxiv: ArxivClient,
+    // tsx 환경의 emitDecoratorMetadata 누락 우회: @Inject(Class) 명시.
+    @Inject(SourceRepository) private readonly repo: SourceRepository,
+  ) {}
 
   async lookup(parsed: ParsedSource): Promise<LicenseLookupResult> {
     if (parsed.kind === "doi") {
@@ -103,7 +102,6 @@ export class LicenseLookupService {
     const kind = normalizeLicenseUrl(metadata.licenseUrl);
 
     if (kind === null) {
-      // arXiv 기본 non-exclusive license — 번역 불가.
       return {
         outcome: "blocked",
         license: "arxiv-default",
@@ -124,8 +122,18 @@ export class LicenseLookupService {
     }
 
     const shareAlike = kind === "CC-BY-SA";
-    const registeredSlug = REGISTERED_SLUGS[parsed.bareId];
-    const alreadyRegistered = Boolean(registeredSlug);
+
+    // DB에서 이미 등록된 ko 번역본을 찾는다. DB가 꺼져 있거나 조회 실패가 나도
+    // 라이선스 판정 자체는 유효하므로 로그만 남기고 alreadyRegistered=false로 진행한다.
+    let registeredSlug: string | undefined;
+    try {
+      const existing = await this.repo.findRegisteredByArxivBareId(parsed.bareId);
+      registeredSlug = existing?.slug;
+    } catch (err) {
+      this.logger.warn(
+        `registration lookup failed for ${parsed.bareId}; treating as not-registered: ${(err as Error).message}`,
+      );
+    }
 
     return {
       outcome: "allowed",
@@ -135,7 +143,7 @@ export class LicenseLookupService {
       authors: metadata.authors,
       version: metadata.version,
       shareAlike,
-      alreadyRegistered,
+      alreadyRegistered: Boolean(registeredSlug),
       ...(registeredSlug ? { registeredSlug } : {}),
     };
   }

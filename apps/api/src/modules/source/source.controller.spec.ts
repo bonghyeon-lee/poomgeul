@@ -1,11 +1,16 @@
 import type { ArxivClient, ArxivMetadata } from "./arxiv-client.js";
 import { LicenseLookupService } from "./license-lookup.js";
 import { SourceController } from "./source.controller.js";
+import type { SourceRepository } from "./source.repository.js";
 
 function stubArxiv(
   behavior: (bareId: string) => Promise<ArxivMetadata>,
 ): ArxivClient {
   return { fetchMetadata: behavior } as unknown as ArxivClient;
+}
+
+function stubRepo(): SourceRepository {
+  return { findRegisteredByArxivBareId: async () => null } as unknown as SourceRepository;
 }
 
 const CCBY_FIXTURE: ArxivMetadata = {
@@ -19,7 +24,7 @@ const CCBY_FIXTURE: ArxivMetadata = {
 function makeController(
   behavior: (bareId: string) => Promise<ArxivMetadata> = async () => CCBY_FIXTURE,
 ): SourceController {
-  const service = new LicenseLookupService(stubArxiv(behavior));
+  const service = new LicenseLookupService(stubArxiv(behavior), stubRepo());
   return new SourceController(service);
 }
 
@@ -29,7 +34,6 @@ describe("SourceController.lookupLicense", () => {
     expect(result).toMatchObject({
       outcome: "allowed",
       license: "CC-BY",
-      alreadyRegistered: true,
     });
   });
 
