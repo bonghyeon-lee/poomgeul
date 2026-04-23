@@ -14,6 +14,7 @@
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -91,10 +92,37 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   displayName: text("display_name"),
   githubHandle: text("github_handle"),
+  // OAuth upsert key — NULLABLE to keep the pre-auth `dev-seed` row compatible
+  // while real users are created via GitHub sign-in (ADR-0005).
+  githubId: text("github_id").unique(),
   orcid: text("orcid"), // M1+ linkage
   tier: userTierEnum("tier").notNull().default("new"), // M0: all rows stay 'new'
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ---------- Session [M0] ----------
+// DB-backed sessions (ADR-0005). The cookie only holds the opaque session_id;
+// every request re-validates against this table, so logout is a single UPDATE.
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    sessionId: uuid("session_id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => ({
+    // Active-session lookup path: WHERE revoked_at IS NULL covers every
+    // cookie-authenticated request, so the partial index pays for itself.
+    activeBySessionId: index("sessions_active_session_id_idx")
+      .on(t.sessionId)
+      .where(sql`${t.revokedAt} is null`),
+  }),
+);
 
 // ---------- Source (원문) [M0] ----------
 
@@ -369,6 +397,7 @@ export const alignments = pgTable(
 
 export const schema = {
   users,
+  sessions,
   sources,
   segments,
   translations,
@@ -390,6 +419,8 @@ export type Schema = typeof schema;
 // Inferred row types (example — extend as domain layer requires):
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
 export type Source = typeof sources.$inferSelect;
 export type Segment = typeof segments.$inferSelect;
 export type Translation = typeof translations.$inferSelect;

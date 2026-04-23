@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 
+import { AuthModule } from "./modules/auth/auth.module.js";
 import { HealthController } from "./modules/health/health.controller.js";
 import { SourceModule } from "./modules/source/source.module.js";
 
@@ -20,8 +21,9 @@ const LOCAL_ENV = resolve(process.cwd(), ".env");
       cache: true,
       envFilePath: [LOCAL_ENV, ROOT_ENV],
     }),
+    AuthModule,
     SourceModule,
-    // Remaining domain modules (auth, translation, proposal) are added as M0
+    // Remaining domain modules (translation, proposal) are added as M0
     // implementation lands — see docs/specs/m0-mvp.md.
   ],
   controllers: [HealthController],
