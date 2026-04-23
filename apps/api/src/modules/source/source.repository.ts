@@ -77,6 +77,12 @@ export type TranslationListItem = {
   segmentCount: number;
   /** aiDraftText가 null이 아닌 translationSegment 수 — 실제 AI 번역이 붙은 개수. */
   translatedCount: number;
+  /**
+   * ar5iv가 렌더하지 못해 세그먼트가 생기지 않은 번역본은 Reader가 의미 있는 렌더를
+   * 할 수 없다. segmentCount === 0을 그 시그널로 삼아 web 목록에서 별도 섹션에 배치한다.
+   * ar5iv 전용 판정이 아니라 "렌더 가능한 컨텐츠가 있는가"의 범용 플래그로 쓴다.
+   */
+  renderable: boolean;
 };
 
 /**
@@ -295,21 +301,26 @@ export class SourceRepository {
       );
     }
 
-    return rows.map((r) => ({
-      translationId: r.translationId,
-      slug: r.slug,
-      targetLang: r.targetLang,
-      status: r.status,
-      license: r.translationLicense,
-      sourceId: r.sourceId,
-      title: r.title,
-      authors: r.authors,
-      sourceLicense: r.sourceLicense,
-      sourceVersion: r.sourceVersion,
-      importedAt: r.importedAt,
-      leadDisplayName: r.leadDisplayName,
-      segmentCount: segCountBySource.get(r.sourceId) ?? 0,
-      translatedCount: translatedCountByTr.get(r.translationId) ?? 0,
-    }));
+    return rows.map((r) => {
+      const segmentCount = segCountBySource.get(r.sourceId) ?? 0;
+      const translatedCount = translatedCountByTr.get(r.translationId) ?? 0;
+      return {
+        translationId: r.translationId,
+        slug: r.slug,
+        targetLang: r.targetLang,
+        status: r.status,
+        license: r.translationLicense,
+        sourceId: r.sourceId,
+        title: r.title,
+        authors: r.authors,
+        sourceLicense: r.sourceLicense,
+        sourceVersion: r.sourceVersion,
+        importedAt: r.importedAt,
+        leadDisplayName: r.leadDisplayName,
+        segmentCount,
+        translatedCount,
+        renderable: segmentCount > 0,
+      };
+    });
   }
 }
