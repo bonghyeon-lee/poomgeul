@@ -71,10 +71,24 @@ export type TranslationOutput = {
   latencyMs: number;
 };
 
+export type BatchTranslationItem = { id: string; text: string };
+
+export type BatchTranslationOutput = {
+  /** 입력 id와 동일한 집합, 동일한 순서로 돌려준다. */
+  items: BatchTranslationItem[];
+  model: string;
+  promptHash: string;
+  promptVersion: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  latencyMs: number;
+};
+
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
-const DEFAULT_TIMEOUT_MS = 30_000;
-const PROMPT_FILE = "translate.en-ko.v1.md";
+const DEFAULT_TIMEOUT_MS = 60_000;
+const PROMPT_FILE_SINGLE = "translate.en-ko.v1.md";
+const PROMPT_FILE_BATCH = "translate.en-ko.v2.md";
 
 type GeminiResponse = {
   candidates?: Array<{
@@ -96,7 +110,7 @@ export class GeminiTranslationProvider {
   private readonly model: string;
   private readonly endpoint: string;
   private readonly timeoutMs: number;
-  private cachedPrompt: LoadedPrompt | null = null;
+  private readonly promptCache = new Map<string, LoadedPrompt>();
 
   constructor(options?: {
     apiKey?: string;
@@ -122,7 +136,7 @@ export class GeminiTranslationProvider {
       );
     }
 
-    const prompt = this.getPrompt();
+    const prompt = this.getPrompt(PROMPT_FILE_SINGLE);
     const url = `${this.endpoint}/${encodeURIComponent(this.model)}:generateContent?key=${this.apiKey}`;
     const body = {
       systemInstruction: {
@@ -207,10 +221,168 @@ export class GeminiTranslationProvider {
     };
   }
 
-  private getPrompt(): LoadedPrompt {
-    if (!this.cachedPrompt) {
-      this.cachedPrompt = loadPrompt(PROMPT_FILE);
+  /**
+   * 여러 세그먼트를 한 요청에 묶어 번역한다. v2 프롬프트와 JSON schema로 구조화 응답을 강제.
+   * id 집합이 달라지거나 배열이 아니거나 JSON 파싱 실패면 TranslationProviderError를 던진다.
+   */
+  async translateBatch(inputs: BatchTranslationItem[]): Promise<BatchTranslationOutput> {
+    if (!this.apiKey) {
+      throw new TranslationProviderError(
+        "GEMINI_API_KEY is not set; cannot call Gemini. Set it in the root .env or skip drafting.",
+      );
     }
-    return this.cachedPrompt;
+    if (inputs.length === 0) {
+      throw new TranslationProviderError("translateBatch called with empty inputs");
+    }
+
+    const prompt = this.getPrompt(PROMPT_FILE_BATCH);
+    const url = `${this.endpoint}/${encodeURIComponent(this.model)}:generateContent?key=${this.apiKey}`;
+
+    const userPayload = JSON.stringify(
+      inputs.map((it) => ({ id: it.id, text: it.text })),
+    );
+
+    const body = {
+      systemInstruction: { parts: [{ text: prompt.body }] },
+      contents: [{ role: "user", parts: [{ text: userPayload }] }],
+      generationConfig: {
+        temperature: prompt.frontmatter.temperature ?? 0.2,
+        maxOutputTokens: prompt.frontmatter.maxOutputTokens ?? 32_768,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              id: { type: "STRING" },
+              text: { type: "STRING" },
+            },
+            required: ["id", "text"],
+          },
+        },
+      },
+    };
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const start = Date.now();
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new TranslationProviderError(
+          `Gemini batch request timed out after ${this.timeoutMs}ms`,
+          { cause: err },
+        );
+      }
+      throw new TranslationProviderError("Gemini batch request failed", { cause: err });
+    }
+    clearTimeout(timer);
+
+    const latencyMs = Date.now() - start;
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      const retryAfterMs = res.status === 429 ? parseGeminiRetryDelay(text) : undefined;
+      throw new TranslationProviderError(
+        `Gemini responded with HTTP ${res.status}: ${text.slice(0, 200)}`,
+        { httpStatus: res.status, retryAfterMs },
+      );
+    }
+
+    const payload = (await res.json()) as GeminiResponse;
+    if (payload.error) {
+      throw new TranslationProviderError(
+        `Gemini API error: ${payload.error.message ?? payload.error.status ?? "unknown"}`,
+        { httpStatus: payload.error.code },
+      );
+    }
+
+    const candidate = payload.candidates?.[0];
+    const rawText = candidate?.content?.parts?.map((p) => p.text ?? "").join("").trim();
+    if (!rawText) {
+      throw new TranslationProviderError(
+        `Gemini returned no candidate text (finishReason=${candidate?.finishReason ?? "unknown"})`,
+      );
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch (err) {
+      throw new TranslationProviderError(
+        `Gemini batch response was not valid JSON: ${rawText.slice(0, 200)}`,
+        { cause: err },
+      );
+    }
+
+    if (!Array.isArray(parsed)) {
+      throw new TranslationProviderError(
+        `Gemini batch response was not a JSON array (got ${typeof parsed})`,
+      );
+    }
+
+    const items: BatchTranslationItem[] = [];
+    for (const el of parsed) {
+      if (
+        !el ||
+        typeof el !== "object" ||
+        typeof (el as Record<string, unknown>).id !== "string" ||
+        typeof (el as Record<string, unknown>).text !== "string"
+      ) {
+        throw new TranslationProviderError(
+          `Gemini batch response item missing id/text: ${JSON.stringify(el).slice(0, 120)}`,
+        );
+      }
+      items.push({
+        id: (el as { id: string }).id,
+        text: (el as { text: string }).text,
+      });
+    }
+
+    const expectedIds = new Set(inputs.map((it) => it.id));
+    const receivedIds = new Set(items.map((it) => it.id));
+    if (expectedIds.size !== receivedIds.size) {
+      throw new TranslationProviderError(
+        `Gemini batch id count mismatch: expected ${expectedIds.size}, got ${receivedIds.size}`,
+      );
+    }
+    for (const id of expectedIds) {
+      if (!receivedIds.has(id)) {
+        throw new TranslationProviderError(
+          `Gemini batch missing id ${id} in response`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `gemini batch ok · items=${items.length} · in=${payload.usageMetadata?.promptTokenCount ?? "?"} out=${payload.usageMetadata?.candidatesTokenCount ?? "?"} · ${latencyMs}ms`,
+    );
+
+    return {
+      items,
+      model: this.model,
+      promptHash: prompt.hash,
+      promptVersion: prompt.versionId,
+      inputTokens: payload.usageMetadata?.promptTokenCount ?? null,
+      outputTokens: payload.usageMetadata?.candidatesTokenCount ?? null,
+      latencyMs,
+    };
+  }
+
+  private getPrompt(filename: string): LoadedPrompt {
+    const cached = this.promptCache.get(filename);
+    if (cached) return cached;
+    const loaded = loadPrompt(filename);
+    this.promptCache.set(filename, loaded);
+    return loaded;
   }
 }
