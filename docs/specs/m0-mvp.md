@@ -24,7 +24,7 @@
 - [ ] CSRF 방어(state param + SameSite=Lax 이상).
 
 **관련 엔티티** — `User` ([data-model.md#user](../architecture/data-model.md#user))
-**관련 결정** — [policy/licensing.md §10.5 개인정보](../policy/licensing.md)
+**관련 결정** — [ADR-0005 GitHub OAuth + 세션](../architecture/decisions/0005-github-oauth-session.md), [policy/licensing.md §10.5 개인정보](../policy/licensing.md)
 
 ---
 
