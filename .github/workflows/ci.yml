@@ -129,10 +129,13 @@ jobs:
           echo "$body" | grep -q '"status":"ok"'
 
       - name: Smoke — /api/docs-json serves OpenAPI
+        # 단순 200 체크로는 과거 회귀(SwaggerModule.setup이 main.ts의 try/catch에
+        # 삼켜져 빈 라우터만 남는 케이스)를 잡지 못해, 본문 내용도 검증한다.
         run: |
-          http_code=$(curl -o /dev/null -s -w "%{http_code}" http://localhost:3000/api/docs-json)
-          echo "http=$http_code"
-          [ "$http_code" = "200" ]
+          body=$(curl -fsS http://localhost:3000/api/docs-json)
+          echo "$body" | head -c 400; echo
+          echo "$body" | jq -e '.openapi | test("^3\\.")' > /dev/null
+          echo "$body" | jq -e '.paths | type == "object" and (keys | length) > 0' > /dev/null
 
       - name: Stop API
         if: always()
