@@ -1,16 +1,27 @@
 /**
- * arXiv 원문의 라이선스 조회 — M0에서는 fixture 기반 mock 구현.
+ * 원문 라이선스 조회 — M0 실제 arXiv API 경로.
  *
- * 실제 구현은 arXiv API / Crossref / DOAJ를 호출해야 한다. 그 교체 지점은
- * 이 파일 안의 fixture 배열과 resolveFromFixture 함수다. 계약(응답 shape +
- * outcome 분기)은 docs/specs/m0-mvp.md §2와 docs/policy/licensing.md를 따른다.
+ * 입력은 parseSourceInput이 돌려준 ParsedSource. arXiv인 경우 ArxivClient로
+ * Atom 메타를 가져와 라이선스 URL을 내부 kind로 정규화하고, 정책
+ * (policy/licensing.md)에 따라 outcome을 결정한다. DOI는 M1까지 unsupported.
+ *
+ * alreadyRegistered 판정은 당장은 REGISTERED_SLUGS 상수로만 수행한다.
+ * Translation 테이블이 시드되면 DB 조회로 교체한다(다음 스텝).
  */
 
+import { Inject, Injectable } from "@nestjs/common";
+
+import {
+  ArxivClient,
+  ArxivNotFoundError,
+  ArxivUpstreamError,
+  type NormalizedLicense,
+  normalizeLicenseUrl,
+} from "./arxiv-client.js";
 import type { ParsedSource } from "./input.js";
 
 export type AllowedLicense = "CC-BY" | "CC-BY-SA" | "PD";
-export type BlockedLicense = "CC-BY-ND" | "CC-BY-NC-ND";
-export type AnyLicense = AllowedLicense | BlockedLicense;
+export type BlockedLicense = "CC-BY-ND" | "CC-BY-NC-ND" | "CC-BY-NC";
 
 export type LicenseLookupResult =
   | {
@@ -26,7 +37,7 @@ export type LicenseLookupResult =
     }
   | {
       outcome: "blocked";
-      license: BlockedLicense;
+      license: BlockedLicense | "arxiv-default";
       title: string;
       reason: string;
     }
@@ -37,88 +48,95 @@ export type LicenseLookupResult =
   | {
       outcome: "not-found";
       reason: string;
+    }
+  | {
+      outcome: "upstream-error";
+      reason: string;
     };
 
-type Fixture = {
-  license: AnyLicense;
-  title: string;
-  authors: string[];
-  version: string;
-  alreadyRegistered?: string;
+/**
+ * M0에서는 이 표 하나만으로 중복 등록을 재현한다. Reader의 샘플 번들과 싱크.
+ * Translation 테이블이 채워지면 이 상수는 지우고 DB 조회(`translationRepo.findBySlug`)로 교체.
+ */
+const REGISTERED_SLUGS: Record<string, string> = {
+  "2310.12345": "sparse-moe-low-resource-mt",
 };
 
-const FIXTURES: Record<string, Fixture> = {
-  "2310.12345": {
-    license: "CC-BY",
-    title: "Sparse Mixture-of-Experts for Low-Resource Machine Translation",
-    authors: ["Sofía Restrepo", "Arjun Iyer", "Lina Haddad"],
-    version: "v2",
-    alreadyRegistered: "sparse-moe-low-resource-mt",
-  },
-  "2504.20451": {
-    license: "CC-BY-SA",
-    title: "Adaptive Calibration under Distribution Shift",
-    authors: ["Mei Tanaka", "Emeka Okafor"],
-    version: "v1",
-  },
-  "2401.11112": {
-    license: "CC-BY-ND",
-    title: "A No-Derivatives Survey of Recent Diffusion Methods",
-    authors: ["Jin Park"],
-    version: "v3",
-  },
-  "2506.00001": {
-    license: "PD",
-    title: "Public Notes on Inverse Problems (1972)",
-    authors: ["Henri Dubois"],
-    version: "v1",
-  },
-};
+export const ARXIV_CLIENT = Symbol("ARXIV_CLIENT");
 
-function isAllowed(license: AnyLicense): license is AllowedLicense {
-  return license === "CC-BY" || license === "CC-BY-SA" || license === "PD";
+function isAllowedLicense(kind: NormalizedLicense): kind is AllowedLicense {
+  return kind === "CC-BY" || kind === "CC-BY-SA" || kind === "PD";
 }
 
-function resolveFromFixture(bareId: string): LicenseLookupResult {
-  const fixture = FIXTURES[bareId];
-  if (!fixture) {
+@Injectable()
+export class LicenseLookupService {
+  constructor(@Inject(ARXIV_CLIENT) private readonly arxiv: ArxivClient) {}
+
+  async lookup(parsed: ParsedSource): Promise<LicenseLookupResult> {
+    if (parsed.kind === "doi") {
+      return {
+        outcome: "unsupported-format",
+        reason:
+          "M0는 arXiv 원문만 import한다. DOI 경로는 M1에서 Crossref·DOAJ 연동과 함께 추가된다.",
+      };
+    }
+
+    let metadata;
+    try {
+      metadata = await this.arxiv.fetchMetadata(parsed.bareId);
+    } catch (err) {
+      if (err instanceof ArxivNotFoundError) {
+        return {
+          outcome: "not-found",
+          reason: `arXiv에서 ${parsed.bareId}를 찾을 수 없다. ID가 정확한지 확인한다.`,
+        };
+      }
+      if (err instanceof ArxivUpstreamError) {
+        return {
+          outcome: "upstream-error",
+          reason: `arXiv에 닿지 못했다: ${err.message}`,
+        };
+      }
+      throw err;
+    }
+
+    const kind = normalizeLicenseUrl(metadata.licenseUrl);
+
+    if (kind === null) {
+      // arXiv 기본 non-exclusive license — 번역 불가.
+      return {
+        outcome: "blocked",
+        license: "arxiv-default",
+        title: metadata.title,
+        reason:
+          "저자가 CC 라이선스를 명시적으로 선택하지 않았다. arXiv 기본 라이선스는 파생물 제작을 허용하지 않아 번역본을 등록할 수 없다. policy/licensing.md 참조.",
+      };
+    }
+
+    if (!isAllowedLicense(kind)) {
+      return {
+        outcome: "blocked",
+        license: kind,
+        title: metadata.title,
+        reason:
+          "파생물 제작을 금지하거나 비상업 조건이 붙은 라이선스라 번역본을 등록할 수 없다. policy/licensing.md 참조.",
+      };
+    }
+
+    const shareAlike = kind === "CC-BY-SA";
+    const registeredSlug = REGISTERED_SLUGS[parsed.bareId];
+    const alreadyRegistered = Boolean(registeredSlug);
+
     return {
-      outcome: "not-found",
-      reason: `arXiv에서 ${bareId}를 찾을 수 없다. ID가 정확한지 확인한다.`,
+      outcome: "allowed",
+      license: kind,
+      translationLicense: kind,
+      title: metadata.title,
+      authors: metadata.authors,
+      version: metadata.version,
+      shareAlike,
+      alreadyRegistered,
+      ...(registeredSlug ? { registeredSlug } : {}),
     };
   }
-
-  if (!isAllowed(fixture.license)) {
-    return {
-      outcome: "blocked",
-      license: fixture.license,
-      title: fixture.title,
-      reason:
-        "파생물 제작을 금지하는 라이선스라 번역본을 등록할 수 없다. policy/licensing.md 참조.",
-    };
-  }
-
-  const shareAlike = fixture.license === "CC-BY-SA";
-  return {
-    outcome: "allowed",
-    license: fixture.license,
-    translationLicense: fixture.license,
-    title: fixture.title,
-    authors: fixture.authors,
-    version: fixture.version,
-    shareAlike,
-    alreadyRegistered: Boolean(fixture.alreadyRegistered),
-    ...(fixture.alreadyRegistered ? { registeredSlug: fixture.alreadyRegistered } : {}),
-  };
-}
-
-export function lookupLicense(parsed: ParsedSource): LicenseLookupResult {
-  if (parsed.kind === "doi") {
-    return {
-      outcome: "unsupported-format",
-      reason:
-        "M0는 arXiv 원문만 import한다. DOI 경로는 M1에서 Crossref·DOAJ 연동과 함께 추가된다.",
-    };
-  }
-  return resolveFromFixture(parsed.bareId);
 }

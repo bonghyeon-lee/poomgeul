@@ -2,7 +2,7 @@ import { Controller, Get, Query } from "@nestjs/common";
 import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
 
 import { SourceInputError, parseSourceInput } from "./input.js";
-import { lookupLicense, type LicenseLookupResult } from "./license-lookup.js";
+import { LicenseLookupService, type LicenseLookupResult } from "./license-lookup.js";
 
 export type LicenseLookupApiResult =
   | LicenseLookupResult
@@ -15,14 +15,16 @@ export type LicenseLookupApiResult =
 @ApiTags("source")
 @Controller("sources")
 export class SourceController {
+  constructor(private readonly lookupService: LicenseLookupService) {}
+
   @Get("license")
   @ApiOperation({
     summary: "Look up the license of an arXiv source by ID / URL / DOI",
     description:
-      "Resolves the license of a source for the Import flow. Returns a " +
-      "discriminated union keyed by `outcome`: `allowed` / `blocked` / " +
-      "`not-found` / `unsupported-format` / `invalid-input`. See " +
-      "docs/specs/m0-mvp.md §2 and docs/policy/licensing.md for the rules.",
+      "Resolves the license of a source for the Import flow via the real arXiv " +
+      "Query API. Returns a discriminated union keyed by `outcome`: `allowed` / " +
+      "`blocked` / `not-found` / `unsupported-format` / `upstream-error` / " +
+      "`invalid-input`. See docs/specs/m0-mvp.md §2 and docs/policy/licensing.md.",
   })
   @ApiQuery({
     name: "input",
@@ -35,11 +37,11 @@ export class SourceController {
     description:
       "Lookup result. Exactly one of the union members is returned; discriminate on the `outcome` field.",
   })
-  lookupLicense(@Query("input") input: string): LicenseLookupApiResult {
+  async lookupLicense(@Query("input") input: string): Promise<LicenseLookupApiResult> {
     const raw = typeof input === "string" ? input : "";
+    let parsed;
     try {
-      const parsed = parseSourceInput(raw);
-      return lookupLicense(parsed);
+      parsed = parseSourceInput(raw);
     } catch (err) {
       if (err instanceof SourceInputError) {
         return {
@@ -53,5 +55,6 @@ export class SourceController {
       }
       throw err;
     }
+    return this.lookupService.lookup(parsed);
   }
 }
