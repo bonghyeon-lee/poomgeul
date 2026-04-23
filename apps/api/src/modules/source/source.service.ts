@@ -85,6 +85,13 @@ const DEV_SEED_EMAIL = "dev-seed@poomgeul.invalid";
 export class SourceService {
   private readonly logger = new Logger(SourceService.name);
 
+  /**
+   * 동일 키에 대해 진행 중인 Promise를 공유한다. 사용자가 Import 버튼을 두 번 누르거나
+   * 여러 탭에서 같은 재처리를 동시에 트리거해도 서버는 한 번만 일한다. 완료(성공/실패)
+   * 후 엔트리는 제거되어 다음 호출은 새로 시작.
+   */
+  private readonly inFlight = new Map<string, Promise<unknown>>();
+
   constructor(
     @Inject(DB_TOKEN) private readonly db: Db,
     // tsx 환경에서 emitDecoratorMetadata가 없어 Class 기반 DI의 파라미터가 undefined로
@@ -94,7 +101,27 @@ export class SourceService {
     @Inject(TranslationDraftService) private readonly draft: TranslationDraftService,
   ) {}
 
+  private async deduped<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const existing = this.inFlight.get(key) as Promise<T> | undefined;
+    if (existing) {
+      this.logger.log(`deduplicating in-flight request for ${key}`);
+      return existing;
+    }
+    const promise = fn().finally(() => {
+      this.inFlight.delete(key);
+    });
+    this.inFlight.set(key, promise);
+    return promise;
+  }
+
   async createFromArxiv(parsed: ArxivId): Promise<CreateTranslationResult> {
+    const key = parsed.version
+      ? `create:arxiv:${parsed.bareId}v${parsed.version}`
+      : `create:arxiv:${parsed.bareId}`;
+    return this.deduped(key, () => this.createFromArxivInner(parsed));
+  }
+
+  private async createFromArxivInner(parsed: ArxivId): Promise<CreateTranslationResult> {
     const lookupResult = await this.lookup.lookup(parsed);
 
     if (lookupResult.outcome !== "allowed") {
@@ -312,6 +339,10 @@ export class SourceService {
    * LLM 호출 비용과 arXiv/Gemini rate limit 때문에 사용자 명시적 트리거로만 돈다.
    */
   async reprocess(slug: string): Promise<ReprocessResult> {
+    return this.deduped(`reprocess:slug:${slug}`, () => this.reprocessInner(slug));
+  }
+
+  private async reprocessInner(slug: string): Promise<ReprocessResult> {
     const trRow = await this.db
       .select({
         translationId: translations.translationId,

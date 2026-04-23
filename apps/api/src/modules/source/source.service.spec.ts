@@ -108,4 +108,55 @@ describe("SourceService.createFromArxiv", () => {
     const result = await svc.createFromArxiv(arxivParsed());
     expect(result).toMatchObject({ outcome: "unsupported-format" });
   });
+
+  it("deduplicates concurrent createFromArxiv calls for the same id (in-flight share)", async () => {
+    let lookupCalls = 0;
+    const slowLookup = {
+      lookup: async () => {
+        lookupCalls += 1;
+        // LicenseLookupService가 네트워크에 의존하는 것을 흉내. blocked outcome을 돌려
+        // DB 경로에 들어가지 않고 빠르게 끝나게 한다.
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        return {
+          outcome: "blocked",
+          license: "arxiv-default",
+          title: "Dup",
+          reason: "x",
+        } as const;
+      },
+    } as unknown as LicenseLookupService;
+
+    const svc = new SourceService(stubDb(), slowLookup, stubFetcher(), stubDraft());
+    const parsed = arxivParsed();
+    const [a, b, c] = await Promise.all([
+      svc.createFromArxiv(parsed),
+      svc.createFromArxiv(parsed),
+      svc.createFromArxiv(parsed),
+    ]);
+    // 같은 Promise가 세 번 반환되었을 것 — lookup은 1회만.
+    expect(lookupCalls).toBe(1);
+    expect(a).toBe(b);
+    expect(b).toBe(c);
+  });
+
+  it("releases the in-flight slot after completion so subsequent calls proceed normally", async () => {
+    let lookupCalls = 0;
+    const lookup = {
+      lookup: async () => {
+        lookupCalls += 1;
+        return {
+          outcome: "blocked",
+          license: "arxiv-default",
+          title: "x",
+          reason: "x",
+        } as const;
+      },
+    } as unknown as LicenseLookupService;
+
+    const svc = new SourceService(stubDb(), lookup, stubFetcher(), stubDraft());
+    const parsed = arxivParsed();
+    await svc.createFromArxiv(parsed);
+    await svc.createFromArxiv(parsed);
+    expect(lookupCalls).toBe(2);
+  });
 });
