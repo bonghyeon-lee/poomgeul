@@ -109,6 +109,11 @@ pnpm test          # 각 워크스페이스 jest (--passWithNoTests) / web은 pl
 ## Drizzle 사용 규약
 
 - **스키마 정본:** `packages/db/src/schema.ts` 한 파일. 모든 엔티티·enum·관계가 여기 모여있음.
+- **빌드 산출물:** `@poomgeul/db`는 `./dist/index.js`를 `main`으로 노출한다. api 런타임(`node dist/main.js`)이 TS 대신 컴파일된 JS를 읽게 하기 위한 것. api를 처음 띄우기 전에 한 번:
+  ```bash
+  pnpm --filter @poomgeul/db build
+  ```
+  드리즐 CLI(`generate`/`migrate`/`studio`)는 여전히 `src/schema.ts`를 직접 읽으므로 `build` 없이 동작한다.
 - **마이그레이션 생성:**
   ```bash
   pnpm --filter @poomgeul/db generate   # 스키마 변경분 → migrations/NNNN_*.sql
