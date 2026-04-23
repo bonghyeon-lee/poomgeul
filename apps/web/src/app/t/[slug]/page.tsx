@@ -8,6 +8,7 @@ import {
   listReaderSlugs,
   loadReaderBundleFromApi,
   ReprocessButton,
+  RetryFailedButton,
   SegmentPair,
 } from "@/features/reader";
 
@@ -82,6 +83,16 @@ export default async function ReaderPage({
   const bodySegments = segments.filter((s) => s.kind !== "reference");
   const referenceSegments = segments.filter((s) => s.kind === "reference");
 
+  // 번역 진행도 계산: reference 제외한 세그먼트 중 aiDraftText가 실제로 채워진 개수.
+  const translatable = segments.filter((s) => s.kind !== "reference");
+  const translatedOk = translatable.filter((s) => {
+    const ts = tsByKey.get(s.segmentId);
+    return ts !== undefined && ts.aiDraftText !== null;
+  }).length;
+  const translatedFailed = translatable.length - translatedOk;
+  const progressPct =
+    translatable.length > 0 ? Math.round((translatedOk / translatable.length) * 100) : 100;
+
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
@@ -116,6 +127,40 @@ export default async function ReaderPage({
             <LicenseBadge kind={source.license} />
             <Chip status="open">open proposals {openProposalBySegment.size}</Chip>
             <Chip status="merged">reviewed revision</Chip>
+          </div>
+        </section>
+
+        <section>
+          <div className={styles.sectionHeader}>
+            <h2>번역 진행도</h2>
+            <span className={styles.sectionHeaderHint}>reference 제외 · AI 초벌 기준</span>
+          </div>
+          <div className={styles.progressCard}>
+            <div className={styles.progressHead}>
+              <span className={styles.progressTitle}>
+                {translatedOk} / {translatable.length} 세그먼트 번역됨 ({progressPct}%)
+              </span>
+              <span className={styles.progressStats}>
+                <span>총 segments: {segments.length}</span>
+                <span>references 제외: {referenceSegments.length}</span>
+                <span>실패 / 원문 유지: {translatedFailed}</span>
+              </span>
+            </div>
+            <div className={styles.progressBar}>
+              <div
+                className={`${styles.progressFill} ${
+                  progressPct === 0
+                    ? styles.progressFillEmpty
+                    : progressPct < 100
+                      ? styles.progressFillPartial
+                      : ""
+                }`}
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            {translatedFailed > 0 ? (
+              <RetryFailedButton slug={slug} failedCount={translatedFailed} />
+            ) : null}
           </div>
         </section>
 

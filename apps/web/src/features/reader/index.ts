@@ -2,6 +2,7 @@ export { AttributionBlock } from "./components/AttributionBlock";
 export type { AttributionBlockProps } from "./components/AttributionBlock";
 
 export { ReprocessButton } from "./components/ReprocessButton";
+export { RetryFailedButton } from "./components/RetryFailedButton";
 
 export { SegmentPair } from "./components/SegmentPair";
 export type { SegmentPairProps } from "./components/SegmentPair";

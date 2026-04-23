@@ -151,6 +151,63 @@
   margin-top: var(--space-4);
 }
 
+.progressCard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.progressHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.progressTitle {
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  color: var(--color-fg);
+}
+
+.progressStats {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--color-fg-subtle);
+  letter-spacing: var(--tracking-wide);
+}
+
+.progressBar {
+  height: 6px;
+  width: 100%;
+  background: var(--paper-200);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-merged);
+  transition: width var(--dur-2) var(--ease-standard);
+}
+
+.progressFillPartial {
+  background: var(--color-stale);
+}
+
+.progressFillEmpty {
+  background: var(--color-accent);
+}
+
 .proposalRow {
   display: flex;
   align-items: center;
