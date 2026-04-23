@@ -26,6 +26,9 @@ function stubSourceService(
     version: "v1",
     segmentCount: 0,
     segmentationStatus: "skipped",
+    draftStatus: "skipped",
+    draftSucceeded: 0,
+    draftFailed: 0,
   },
 ): SourceService {
   return {
@@ -108,6 +111,9 @@ describe("SourceController.createSource", () => {
         version: "v1",
         segmentCount: 42,
         segmentationStatus: "ok",
+        draftStatus: "ok",
+        draftSucceeded: 42,
+        draftFailed: 0,
       }),
     }).createSource({ input: "2310.12345" });
     expect(result).toMatchObject({ outcome: "created", slug: "my-paper" });

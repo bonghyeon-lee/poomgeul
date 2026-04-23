@@ -15,8 +15,9 @@
  */
 
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import { type Db, eq, segments, sources, translations, users } from "@poomgeul/db";
+import { type Db, eq, segments, sources, translations, translationSegments, users } from "@poomgeul/db";
 
+import { TranslationDraftService } from "../translation/translation-draft.service.js";
 import {
   Ar5ivNotFoundError,
   Ar5ivUpstreamError,
@@ -41,6 +42,10 @@ export type CreateTranslationResult =
       version: string;
       segmentCount: number;
       segmentationStatus: "ok" | "skipped" | "upstream-error";
+      /** LLM 초벌 생성 결과. skipped=provider 미설정, ok=전부 성공, partial=일부 실패, failed=전부 실패. */
+      draftStatus: "ok" | "skipped" | "partial" | "failed";
+      draftSucceeded: number;
+      draftFailed: number;
     }
   | {
       outcome: "already-registered";
@@ -62,6 +67,7 @@ export class SourceService {
     // 들어오는 문제를 @Inject(Class)로 우회. node dist/main.js에는 영향 없다.
     @Inject(LicenseLookupService) private readonly lookup: LicenseLookupService,
     @Inject(AR5IV_FETCHER) private readonly ar5iv: Ar5ivFetcher,
+    @Inject(TranslationDraftService) private readonly draft: TranslationDraftService,
   ) {}
 
   async createFromArxiv(parsed: ArxivId): Promise<CreateTranslationResult> {
@@ -129,7 +135,9 @@ export class SourceService {
       }
     }
 
-    return this.db.transaction(async (tx) => {
+    // Stage 1: source + segments를 먼저 커밋해 segment id를 받아온다.
+    // LLM 호출이 길어 트랜잭션을 hold하면 DB 연결 풀을 점유하므로 단계를 나눈다.
+    const stage1 = await this.db.transaction(async (tx) => {
       const insertedSource = await tx
         .insert(sources)
         .values({
@@ -145,6 +153,7 @@ export class SourceService {
       const source = insertedSource[0];
       if (!source) throw new Error("insert into sources returned no row");
 
+      let segmentRows: Array<{ segmentId: string; order: number; kind: "body" | "caption" | "footnote" | "reference"; originalText: string }> = [];
       if (parsedSegments.length > 0) {
         const values = parsedSegments.map((s) => ({
           sourceId: source.sourceId,
@@ -152,13 +161,37 @@ export class SourceService {
           originalText: s.text,
           kind: s.kind,
         }));
-        await tx.insert(segments).values(values);
+        const inserted = await tx
+          .insert(segments)
+          .values(values)
+          .returning({
+            segmentId: segments.segmentId,
+            order: segments.order,
+            kind: segments.kind,
+            originalText: segments.originalText,
+          });
+        segmentRows = inserted;
       }
+      return { source, segmentRows };
+    });
 
+    // Stage 2 (out-of-transaction): LLM 초벌 생성. 네트워크 지연이 크므로 트랜잭션 바깥.
+    // 전부 실패해도 Stage 3에서 원문을 text에 담아 translation_segments를 만든다.
+    const draftResult = await this.draft.draftAll(
+      stage1.segmentRows.map((r) => ({
+        segmentId: r.segmentId,
+        order: r.order,
+        kind: r.kind,
+        originalText: r.originalText,
+      })),
+    );
+
+    // Stage 3: translation + translation_segments 커밋.
+    const stage3 = await this.db.transaction(async (tx) => {
       const insertedTranslation = await tx
         .insert(translations)
         .values({
-          sourceId: source.sourceId,
+          sourceId: stage1.source.sourceId,
           targetLang: "ko",
           leadId: importerId,
           status: "draft",
@@ -169,18 +202,36 @@ export class SourceService {
       const translation = insertedTranslation[0];
       if (!translation) throw new Error("insert into translations returned no row");
 
-      return {
-        outcome: "created",
-        sourceId: source.sourceId,
-        translationId: translation.translationId,
-        slug: translation.slug,
-        license: lookupResult.license,
-        title: lookupResult.title,
-        version: sourceVersion,
-        segmentCount: parsedSegments.length,
-        segmentationStatus,
-      };
+      if (draftResult.drafts.length > 0) {
+        await tx.insert(translationSegments).values(
+          draftResult.drafts.map((d) => ({
+            translationId: translation.translationId,
+            segmentId: d.segmentId,
+            text: d.text,
+            aiDraftText: d.aiDraftText,
+            aiDraftSource: d.aiDraftSource,
+            lastEditorId: importerId,
+            status: d.status,
+          })),
+        );
+      }
+      return translation;
     });
+
+    return {
+      outcome: "created",
+      sourceId: stage1.source.sourceId,
+      translationId: stage3.translationId,
+      slug: stage3.slug,
+      license: lookupResult.license,
+      title: lookupResult.title,
+      version: sourceVersion,
+      segmentCount: parsedSegments.length,
+      segmentationStatus,
+      draftStatus: draftResult.status,
+      draftSucceeded: draftResult.succeeded,
+      draftFailed: draftResult.failed,
+    };
   }
 
   private async ensureSeedUser(): Promise<string> {

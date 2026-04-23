@@ -1,6 +1,11 @@
 import { Module, type OnModuleDestroy } from "@nestjs/common";
 import { createDb, type Db } from "@poomgeul/db";
 
+import { GeminiTranslationProvider } from "../translation/gemini-provider.js";
+import {
+  TRANSLATION_PROVIDER,
+  TranslationDraftService,
+} from "../translation/translation-draft.service.js";
 import { Ar5ivFetcher } from "./ar5iv-fetcher.js";
 import { ArxivClient } from "./arxiv-client.js";
 import { ARXIV_CLIENT, LicenseLookupService } from "./license-lookup.js";
@@ -51,6 +56,11 @@ class DbHolder implements OnModuleDestroy {
       provide: AR5IV_FETCHER,
       useFactory: () => new Ar5ivFetcher(),
     },
+    {
+      provide: TRANSLATION_PROVIDER,
+      useFactory: () => new GeminiTranslationProvider(),
+    },
+    TranslationDraftService,
     LicenseLookupService,
     SourceService,
   ],

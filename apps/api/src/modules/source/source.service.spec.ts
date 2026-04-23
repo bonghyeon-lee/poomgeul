@@ -10,6 +10,7 @@ import type { LicenseLookupResult } from "./license-lookup.js";
 import { LicenseLookupService } from "./license-lookup.js";
 import { parseSourceInput, type ArxivId } from "./input.js";
 import { SourceService } from "./source.service.js";
+import type { TranslationDraftService } from "../translation/translation-draft.service.js";
 
 function stubLookup(result: LicenseLookupResult): LicenseLookupService {
   return { lookup: async () => result } as unknown as LicenseLookupService;
@@ -35,6 +36,14 @@ function stubFetcher(): Ar5ivFetcher {
   } as unknown as Ar5ivFetcher;
 }
 
+function stubDraft(): TranslationDraftService {
+  return {
+    draftAll: async () => {
+      throw new Error("stubDraft should not be called in these paths");
+    },
+  } as unknown as TranslationDraftService;
+}
+
 function arxivParsed(bareId = "2504.20451"): ArxivId {
   const parsed = parseSourceInput(bareId);
   if (parsed.kind !== "arxiv") throw new Error("test precondition: expected arxiv");
@@ -52,6 +61,7 @@ describe("SourceService.createFromArxiv", () => {
         reason: "arxiv-default",
       }),
       stubFetcher(),
+      stubDraft(),
     );
     const result = await svc.createFromArxiv(arxivParsed());
     expect(result).toMatchObject({ outcome: "blocked", license: "arxiv-default" });
@@ -65,6 +75,7 @@ describe("SourceService.createFromArxiv", () => {
         reason: "missing",
       }),
       stubFetcher(),
+      stubDraft(),
     );
     const result = await svc.createFromArxiv(arxivParsed("9999.99999"));
     expect(result).toMatchObject({ outcome: "not-found" });
@@ -78,6 +89,7 @@ describe("SourceService.createFromArxiv", () => {
         reason: "timeout",
       }),
       stubFetcher(),
+      stubDraft(),
     );
     const result = await svc.createFromArxiv(arxivParsed());
     expect(result).toMatchObject({ outcome: "upstream-error" });
@@ -91,6 +103,7 @@ describe("SourceService.createFromArxiv", () => {
         reason: "doi",
       }),
       stubFetcher(),
+      stubDraft(),
     );
     const result = await svc.createFromArxiv(arxivParsed());
     expect(result).toMatchObject({ outcome: "unsupported-format" });

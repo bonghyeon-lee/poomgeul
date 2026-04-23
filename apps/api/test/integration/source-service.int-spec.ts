@@ -14,7 +14,25 @@ import { parseSourceInput, type ArxivId } from "../../src/modules/source/input.j
 import { LicenseLookupService } from "../../src/modules/source/license-lookup.js";
 import { SourceRepository } from "../../src/modules/source/source.repository.js";
 import { SourceService } from "../../src/modules/source/source.service.js";
+import type { TranslationDraftService } from "../../src/modules/translation/translation-draft.service.js";
 import { withRollback } from "../db/test-db.js";
+
+function stubDraftSkipped(): TranslationDraftService {
+  return {
+    draftAll: async (segs: Array<{ segmentId: string; originalText: string }>) => ({
+      drafts: segs.map((s) => ({
+        segmentId: s.segmentId,
+        text: s.originalText,
+        aiDraftText: null,
+        aiDraftSource: null,
+        status: "unreviewed" as const,
+      })),
+      status: "skipped" as const,
+      succeeded: 0,
+      failed: 0,
+    }),
+  } as unknown as TranslationDraftService;
+}
 
 function arxivParsed(input = "2504.20451"): ArxivId {
   const parsed = parseSourceInput(input);
@@ -57,7 +75,7 @@ describe("SourceService.createFromArxiv (integration)", () => {
       });
       const repo = new SourceRepository(db);
       const lookup = new LicenseLookupService(client, repo);
-      const service = new SourceService(db, lookup, stubAr5ivWithHtml(MINIMAL_AR5IV));
+      const service = new SourceService(db, lookup, stubAr5ivWithHtml(MINIMAL_AR5IV), stubDraftSkipped());
 
       const result = await service.createFromArxiv(arxivParsed("2504.20451"));
       expect(result.outcome).toBe("created");
@@ -122,7 +140,7 @@ describe("SourceService.createFromArxiv (integration)", () => {
       });
       const repo = new SourceRepository(db);
       const lookup = new LicenseLookupService(client, repo);
-      const service = new SourceService(db, lookup, stubAr5ivMissing());
+      const service = new SourceService(db, lookup, stubAr5ivMissing(), stubDraftSkipped());
 
       const result = await service.createFromArxiv(arxivParsed("2505.99999"));
       if (result.outcome !== "created") throw new Error("expected created");
@@ -174,7 +192,7 @@ describe("SourceService.createFromArxiv (integration)", () => {
       });
       const repo = new SourceRepository(db);
       const lookup = new LicenseLookupService(client, repo);
-      const service = new SourceService(db, lookup, stubAr5ivMissing());
+      const service = new SourceService(db, lookup, stubAr5ivMissing(), stubDraftSkipped());
 
       const result = await service.createFromArxiv(arxivParsed("2504.20451"));
       expect(result).toMatchObject({
@@ -195,7 +213,7 @@ describe("SourceService.createFromArxiv (integration)", () => {
       });
       const repo = new SourceRepository(db);
       const lookup = new LicenseLookupService(client, repo);
-      const service = new SourceService(db, lookup, stubAr5ivMissing());
+      const service = new SourceService(db, lookup, stubAr5ivMissing(), stubDraftSkipped());
 
       const result = await service.createFromArxiv(arxivParsed("2401.11112"));
       expect(result).toMatchObject({ outcome: "blocked", license: "CC-BY-ND" });
