@@ -5,8 +5,10 @@
  * 삽입하는 경로를 확인한다. withRollback이 모든 변경을 되돌리므로 연속 실행 안전.
  */
 
-import { eq, sources, translations, users } from "@poomgeul/db";
+import { eq, segments, sources, translations, users } from "@poomgeul/db";
 
+import type { Ar5ivFetcher } from "../../src/modules/source/ar5iv-fetcher.js";
+import { Ar5ivNotFoundError } from "../../src/modules/source/ar5iv-fetcher.js";
 import type { ArxivClient, ArxivMetadata } from "../../src/modules/source/arxiv-client.js";
 import { parseSourceInput, type ArxivId } from "../../src/modules/source/input.js";
 import { LicenseLookupService } from "../../src/modules/source/license-lookup.js";
@@ -24,6 +26,25 @@ function stubArxivClient(meta: ArxivMetadata): ArxivClient {
   return { fetchMetadata: async () => meta } as unknown as ArxivClient;
 }
 
+function stubAr5ivWithHtml(html: string): Ar5ivFetcher {
+  return { fetchHtml: async () => html } as unknown as Ar5ivFetcher;
+}
+
+function stubAr5ivMissing(): Ar5ivFetcher {
+  return {
+    fetchHtml: async () => {
+      throw new Ar5ivNotFoundError("any");
+    },
+  } as unknown as Ar5ivFetcher;
+}
+
+const MINIMAL_AR5IV = `
+<html><body>
+  <div class="ltx_abstract"><p class="ltx_p">Abstract line one. Abstract line two.</p></div>
+  <section class="ltx_section"><p class="ltx_p">Body sentence one. Body sentence two.</p></section>
+  <section class="ltx_bibliography"><ul><li class="ltx_bibitem">First reference.</li></ul></section>
+</body></html>`;
+
 describe("SourceService.createFromArxiv (integration)", () => {
   it("creates source + ko translation in one transaction for a CC BY paper", async () => {
     await withRollback(async (db) => {
@@ -36,11 +57,13 @@ describe("SourceService.createFromArxiv (integration)", () => {
       });
       const repo = new SourceRepository(db);
       const lookup = new LicenseLookupService(client, repo);
-      const service = new SourceService(db, lookup);
+      const service = new SourceService(db, lookup, stubAr5ivWithHtml(MINIMAL_AR5IV));
 
       const result = await service.createFromArxiv(arxivParsed("2504.20451"));
       expect(result.outcome).toBe("created");
       if (result.outcome !== "created") return;
+      expect(result.segmentationStatus).toBe("ok");
+      expect(result.segmentCount).toBeGreaterThan(0);
 
       // source row inserted
       const srcRows = await db
@@ -70,12 +93,47 @@ describe("SourceService.createFromArxiv (integration)", () => {
         slug: result.slug,
       });
 
+      // segments from parser persisted
+      const segRows = await db
+        .select()
+        .from(segments)
+        .where(eq(segments.sourceId, result.sourceId));
+      expect(segRows.length).toBe(result.segmentCount);
+      expect(segRows.some((s) => s.kind === "body")).toBe(true);
+      expect(segRows.some((s) => s.kind === "reference")).toBe(true);
+
       // dev seed user was created once
       const seed = await db
         .select()
         .from(users)
         .where(eq(users.email, "dev-seed@poomgeul.invalid"));
       expect(seed).toHaveLength(1);
+    });
+  });
+
+  it("still creates source + translation when ar5iv has no HTML (segmentationStatus=skipped)", async () => {
+    await withRollback(async (db) => {
+      const client = stubArxivClient({
+        bareId: "2505.99999",
+        version: "v1",
+        title: "No ar5iv mirror",
+        authors: ["A"],
+        licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+      });
+      const repo = new SourceRepository(db);
+      const lookup = new LicenseLookupService(client, repo);
+      const service = new SourceService(db, lookup, stubAr5ivMissing());
+
+      const result = await service.createFromArxiv(arxivParsed("2505.99999"));
+      if (result.outcome !== "created") throw new Error("expected created");
+      expect(result.segmentationStatus).toBe("skipped");
+      expect(result.segmentCount).toBe(0);
+
+      const segRows = await db.select().from(segments).where(eq(segments.sourceId, result.sourceId));
+      expect(segRows).toHaveLength(0);
+
+      const trRows = await db.select().from(translations).where(eq(translations.translationId, result.translationId));
+      expect(trRows).toHaveLength(1);
     });
   });
 
@@ -116,7 +174,7 @@ describe("SourceService.createFromArxiv (integration)", () => {
       });
       const repo = new SourceRepository(db);
       const lookup = new LicenseLookupService(client, repo);
-      const service = new SourceService(db, lookup);
+      const service = new SourceService(db, lookup, stubAr5ivMissing());
 
       const result = await service.createFromArxiv(arxivParsed("2504.20451"));
       expect(result).toMatchObject({
@@ -137,7 +195,7 @@ describe("SourceService.createFromArxiv (integration)", () => {
       });
       const repo = new SourceRepository(db);
       const lookup = new LicenseLookupService(client, repo);
-      const service = new SourceService(db, lookup);
+      const service = new SourceService(db, lookup, stubAr5ivMissing());
 
       const result = await service.createFromArxiv(arxivParsed("2401.11112"));
       expect(result).toMatchObject({ outcome: "blocked", license: "CC-BY-ND" });

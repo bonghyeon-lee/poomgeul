@@ -1,11 +1,13 @@
 import { Module, type OnModuleDestroy } from "@nestjs/common";
 import { createDb, type Db } from "@poomgeul/db";
 
+import { Ar5ivFetcher } from "./ar5iv-fetcher.js";
 import { ArxivClient } from "./arxiv-client.js";
 import { ARXIV_CLIENT, LicenseLookupService } from "./license-lookup.js";
 import { SourceController } from "./source.controller.js";
 import { DB_TOKEN, SourceRepository } from "./source.repository.js";
-import { SourceService } from "./source.service.js";
+import { AR5IV_FETCHER, SourceService } from "./source.service.js";
+import { TranslationsController } from "./translations.controller.js";
 
 /**
  * Db 핸들을 소유하는 작은 holder. 모듈이 파괴될 때 postgres 풀을 닫는다.
@@ -32,7 +34,7 @@ class DbHolder implements OnModuleDestroy {
 }
 
 @Module({
-  controllers: [SourceController],
+  controllers: [SourceController, TranslationsController],
   providers: [
     DbHolder,
     {
@@ -44,6 +46,10 @@ class DbHolder implements OnModuleDestroy {
     {
       provide: ARXIV_CLIENT,
       useFactory: () => new ArxivClient(),
+    },
+    {
+      provide: AR5IV_FETCHER,
+      useFactory: () => new Ar5ivFetcher(),
     },
     LicenseLookupService,
     SourceService,

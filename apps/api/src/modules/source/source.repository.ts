@@ -1,5 +1,15 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { type Db, and, eq, like, sources, translations } from "@poomgeul/db";
+import {
+  type Db,
+  and,
+  eq,
+  like,
+  segments,
+  sources,
+  translations,
+  translationSegments,
+  users,
+} from "@poomgeul/db";
 
 export const DB_TOKEN = Symbol("DB_TOKEN");
 
@@ -9,6 +19,44 @@ export type RegisteredTranslation = {
   translationId: string;
   slug: string;
   targetLang: string;
+};
+
+export type ReaderBundleRow = {
+  source: {
+    sourceId: string;
+    title: string;
+    author: string[];
+    originalLang: string;
+    license: "CC-BY" | "CC-BY-SA" | "PD" | "CC-BY-NC";
+    attributionSource: string;
+    sourceVersion: string;
+    importedAt: Date;
+    importer: { userId: string; displayName: string | null; githubHandle: string | null };
+  };
+  translation: {
+    translationId: string;
+    sourceId: string;
+    targetLang: string;
+    leadId: string;
+    leadDisplayName: string | null;
+    status: "draft" | "reviewed" | "featured";
+    license: "CC-BY" | "CC-BY-SA" | "PD" | "CC-BY-NC";
+    slug: string;
+    currentRevisionId: string | null;
+  };
+  segments: Array<{
+    segmentId: string;
+    order: number;
+    originalText: string;
+    kind: "body" | "caption" | "footnote" | "reference";
+  }>;
+  translationSegments: Array<{
+    segmentId: string;
+    text: string;
+    aiDraftText: string | null;
+    version: number;
+    status: "unreviewed" | "approved";
+  }>;
 };
 
 /**
@@ -64,5 +112,106 @@ export class SourceRepository {
       }
     }
     return null;
+  }
+
+  /**
+   * slug로 Reader 번들을 조회한다. 없으면 null. TranslationSegment가 아직 안 채워졌다면
+   * translationSegments는 빈 배열로 돌려주고 상위가 원문만 렌더할 수 있게 한다.
+   */
+  async findReaderBundleBySlug(slug: string): Promise<ReaderBundleRow | null> {
+    const trRow = await this.db
+      .select({
+        translationId: translations.translationId,
+        sourceId: translations.sourceId,
+        targetLang: translations.targetLang,
+        leadId: translations.leadId,
+        status: translations.status,
+        license: translations.license,
+        slug: translations.slug,
+        currentRevisionId: translations.currentRevisionId,
+        leadDisplayName: users.displayName,
+      })
+      .from(translations)
+      .innerJoin(users, eq(users.id, translations.leadId))
+      .where(eq(translations.slug, slug))
+      .limit(1);
+
+    const tr = trRow[0];
+    if (!tr) return null;
+
+    const srcRow = await this.db
+      .select({
+        sourceId: sources.sourceId,
+        title: sources.title,
+        author: sources.author,
+        originalLang: sources.originalLang,
+        license: sources.license,
+        attributionSource: sources.attributionSource,
+        sourceVersion: sources.sourceVersion,
+        importedAt: sources.importedAt,
+        importerId: users.id,
+        importerName: users.displayName,
+        importerHandle: users.githubHandle,
+      })
+      .from(sources)
+      .innerJoin(users, eq(users.id, sources.importedBy))
+      .where(eq(sources.sourceId, tr.sourceId))
+      .limit(1);
+
+    const src = srcRow[0];
+    if (!src) return null;
+
+    const segRows = await this.db
+      .select({
+        segmentId: segments.segmentId,
+        order: segments.order,
+        originalText: segments.originalText,
+        kind: segments.kind,
+      })
+      .from(segments)
+      .where(eq(segments.sourceId, src.sourceId))
+      .orderBy(segments.order);
+
+    const tsRows = await this.db
+      .select({
+        segmentId: translationSegments.segmentId,
+        text: translationSegments.text,
+        aiDraftText: translationSegments.aiDraftText,
+        version: translationSegments.version,
+        status: translationSegments.status,
+      })
+      .from(translationSegments)
+      .where(eq(translationSegments.translationId, tr.translationId));
+
+    return {
+      source: {
+        sourceId: src.sourceId,
+        title: src.title,
+        author: src.author,
+        originalLang: src.originalLang,
+        license: src.license,
+        attributionSource: src.attributionSource,
+        sourceVersion: src.sourceVersion,
+        importedAt: src.importedAt,
+        importer: {
+          userId: src.importerId,
+          displayName: src.importerName,
+          githubHandle: src.importerHandle,
+        },
+      },
+      translation: {
+        translationId: tr.translationId,
+        sourceId: tr.sourceId,
+        targetLang: tr.targetLang,
+        leadId: tr.leadId,
+        leadDisplayName: tr.leadDisplayName,
+        status: tr.status,
+        license: tr.license,
+        slug: tr.slug,
+        currentRevisionId: tr.currentRevisionId,
+      },
+      segments: segRows,
+      translationSegments: tsRows,
+    };
   }
 }

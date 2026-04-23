@@ -24,6 +24,8 @@ function stubSourceService(
     license: "CC-BY",
     title: "Example",
     version: "v1",
+    segmentCount: 0,
+    segmentationStatus: "skipped",
   },
 ): SourceService {
   return {
@@ -104,6 +106,8 @@ describe("SourceController.createSource", () => {
         license: "CC-BY",
         title: "Paper",
         version: "v1",
+        segmentCount: 42,
+        segmentationStatus: "ok",
       }),
     }).createSource({ input: "2310.12345" });
     expect(result).toMatchObject({ outcome: "created", slug: "my-paper" });

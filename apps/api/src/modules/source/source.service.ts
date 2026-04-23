@@ -15,12 +15,20 @@
  */
 
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import { type Db, eq, sources, translations, users } from "@poomgeul/db";
+import { type Db, eq, segments, sources, translations, users } from "@poomgeul/db";
 
+import {
+  Ar5ivNotFoundError,
+  Ar5ivUpstreamError,
+  type Ar5ivFetcher,
+} from "./ar5iv-fetcher.js";
 import type { ArxivId } from "./input.js";
 import type { AllowedLicense, LicenseLookupResult } from "./license-lookup.js";
 import { LicenseLookupService } from "./license-lookup.js";
+import { parseAr5ivHtml, type ParsedSegment } from "./segment-parser.js";
 import { DB_TOKEN } from "./source.repository.js";
+
+export const AR5IV_FETCHER = Symbol("AR5IV_FETCHER");
 
 export type CreateTranslationResult =
   | {
@@ -31,6 +39,8 @@ export type CreateTranslationResult =
       license: AllowedLicense;
       title: string;
       version: string;
+      segmentCount: number;
+      segmentationStatus: "ok" | "skipped" | "upstream-error";
     }
   | {
       outcome: "already-registered";
@@ -51,6 +61,7 @@ export class SourceService {
     // tsx 환경에서 emitDecoratorMetadata가 없어 Class 기반 DI의 파라미터가 undefined로
     // 들어오는 문제를 @Inject(Class)로 우회. node dist/main.js에는 영향 없다.
     @Inject(LicenseLookupService) private readonly lookup: LicenseLookupService,
+    @Inject(AR5IV_FETCHER) private readonly ar5iv: Ar5ivFetcher,
   ) {}
 
   async createFromArxiv(parsed: ArxivId): Promise<CreateTranslationResult> {
@@ -93,9 +104,31 @@ export class SourceService {
     const sourceVersion = parsed.version ? `v${parsed.version}` : lookupResult.version;
     const baseSlug = slugify(lookupResult.title);
 
-    // Transaction으로 source + translation 한 번에. slug는 (source_id, target_lang)
-    // 안에서만 unique이므로 다른 source 번역본과 충돌할 일은 없지만, 같은 source에
-    // 이미 ko가 있으면 UNIQUE 위반 → 상위 경로에서 already-registered로 다뤘어야 한다.
+    // ar5iv fetch + parse는 트랜잭션 바깥에서. 실패해도 Source/Translation은 만들고
+    // segmentationStatus로 알려, 이후 재시도 잡이 segment만 채울 수 있게 한다.
+    let parsedSegments: ParsedSegment[] = [];
+    let segmentationStatus: "ok" | "skipped" | "upstream-error" = "ok";
+    try {
+      const html = await this.ar5iv.fetchHtml(parsed.bareId);
+      parsedSegments = parseAr5ivHtml(html);
+      if (parsedSegments.length === 0) {
+        segmentationStatus = "skipped";
+        this.logger.warn(
+          `ar5iv returned HTML for ${parsed.bareId} but parser produced 0 segments`,
+        );
+      }
+    } catch (err) {
+      if (err instanceof Ar5ivNotFoundError) {
+        segmentationStatus = "skipped";
+        this.logger.warn(`ar5iv has no HTML for ${parsed.bareId}; source saved without segments`);
+      } else if (err instanceof Ar5ivUpstreamError) {
+        segmentationStatus = "upstream-error";
+        this.logger.warn(`ar5iv fetch failed for ${parsed.bareId}: ${err.message}`);
+      } else {
+        throw err;
+      }
+    }
+
     return this.db.transaction(async (tx) => {
       const insertedSource = await tx
         .insert(sources)
@@ -111,6 +144,16 @@ export class SourceService {
         .returning();
       const source = insertedSource[0];
       if (!source) throw new Error("insert into sources returned no row");
+
+      if (parsedSegments.length > 0) {
+        const values = parsedSegments.map((s) => ({
+          sourceId: source.sourceId,
+          order: s.order,
+          originalText: s.text,
+          kind: s.kind,
+        }));
+        await tx.insert(segments).values(values);
+      }
 
       const insertedTranslation = await tx
         .insert(translations)
@@ -134,6 +177,8 @@ export class SourceService {
         license: lookupResult.license,
         title: lookupResult.title,
         version: sourceVersion,
+        segmentCount: parsedSegments.length,
+        segmentationStatus,
       };
     });
   }

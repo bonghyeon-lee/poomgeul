@@ -5,6 +5,7 @@
 
 import type { Db } from "@poomgeul/db";
 
+import type { Ar5ivFetcher } from "./ar5iv-fetcher.js";
 import type { LicenseLookupResult } from "./license-lookup.js";
 import { LicenseLookupService } from "./license-lookup.js";
 import { parseSourceInput, type ArxivId } from "./input.js";
@@ -26,6 +27,14 @@ function stubDb(): Db {
   } as unknown as Db;
 }
 
+function stubFetcher(): Ar5ivFetcher {
+  return {
+    fetchHtml: async () => {
+      throw new Error("stubFetcher should not be called in these paths");
+    },
+  } as unknown as Ar5ivFetcher;
+}
+
 function arxivParsed(bareId = "2504.20451"): ArxivId {
   const parsed = parseSourceInput(bareId);
   if (parsed.kind !== "arxiv") throw new Error("test precondition: expected arxiv");
@@ -42,6 +51,7 @@ describe("SourceService.createFromArxiv", () => {
         title: "Non-CC paper",
         reason: "arxiv-default",
       }),
+      stubFetcher(),
     );
     const result = await svc.createFromArxiv(arxivParsed());
     expect(result).toMatchObject({ outcome: "blocked", license: "arxiv-default" });
@@ -54,6 +64,7 @@ describe("SourceService.createFromArxiv", () => {
         outcome: "not-found",
         reason: "missing",
       }),
+      stubFetcher(),
     );
     const result = await svc.createFromArxiv(arxivParsed("9999.99999"));
     expect(result).toMatchObject({ outcome: "not-found" });
@@ -66,6 +77,7 @@ describe("SourceService.createFromArxiv", () => {
         outcome: "upstream-error",
         reason: "timeout",
       }),
+      stubFetcher(),
     );
     const result = await svc.createFromArxiv(arxivParsed());
     expect(result).toMatchObject({ outcome: "upstream-error" });
@@ -78,6 +90,7 @@ describe("SourceService.createFromArxiv", () => {
         outcome: "unsupported-format",
         reason: "doi",
       }),
+      stubFetcher(),
     );
     const result = await svc.createFromArxiv(arxivParsed());
     expect(result).toMatchObject({ outcome: "unsupported-format" });
