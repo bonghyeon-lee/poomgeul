@@ -15,7 +15,8 @@
 3. [specs/m0-mvp.md](specs/m0-mvp.md) — 지금 만들 기능
 4. [guides/dev-setup.md](guides/dev-setup.md) — 로컬 실행
 5. [guides/testing.md](guides/testing.md) — TDD 레이어·DB 격리 전략
-6. [architecture/decisions/](architecture/decisions/) — ADR: "왜 이렇게 설계했나"
+6. [design/README.md](design/README.md) — 디자인 시스템 원칙·토큰·컴포넌트 키트 규범
+7. [architecture/decisions/](architecture/decisions/) — ADR: "왜 이렇게 설계했나"
 
 ### ✍️ 번역 기여자 / 리드 메인테이너
 1. [architecture/workflow-proposal.md](architecture/workflow-proposal.md) — Proposal → 머지 흐름
@@ -35,6 +36,7 @@ docs/
 ├── architecture/  시스템·데이터 모델·워크플로우·ADR
 ├── specs/         Phase별 기능 명세
 ├── guides/        개발·LLM·원문 임포트·스타일 가이드
+├── design/        디자인 시스템 — 토큰·타이포·컴포넌트 규범
 ├── policy/        라이선스·거버넌스·Attribution
 └── research/      PoC·외부 문서 링크 허브
 ```
