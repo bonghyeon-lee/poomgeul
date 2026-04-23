@@ -1,4 +1,5 @@
-import { Button, Card, CardBody, CardEyebrow, CardTitle, Chip, Eyebrow, Logo } from "../components/ui";
+import { Button, Card, CardBody, CardEyebrow, CardTitle, Chip, Eyebrow, Logo } from "@/components/ui";
+
 import styles from "./page.module.css";
 
 export default function Home() {
