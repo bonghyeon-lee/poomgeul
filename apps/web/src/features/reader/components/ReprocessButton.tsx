@@ -210,9 +210,11 @@ function summaryClass(result: ReprocessSuccess): string {
 
 function summaryHeadline(result: ReprocessSuccess): string {
   if (result.segmentCount === 0) {
-    return result.segmentationStatus === "upstream-error"
-      ? "ar5iv 호출 실패"
-      : "세그먼트 0개 — ar5iv가 이 논문을 지원하지 않음";
+    if (result.segmentationStatus === "upstream-error") {
+      return "ar5iv 호출 실패";
+    }
+    // skipped: ar5iv가 이 논문을 렌더하지 못해 arxiv.org/abs로 리다이렉트한 경우가 대부분.
+    return "ar5iv가 이 논문을 지원하지 않음";
   }
   if (result.draftStatus === "failed") return "초벌 번역 전부 실패";
   if (result.draftStatus === "partial") return "재처리 완료 — 일부 번역 실패";
@@ -222,7 +224,14 @@ function summaryHeadline(result: ReprocessSuccess): string {
 
 function summaryBody(result: ReprocessSuccess): string {
   if (result.segmentCount === 0) {
-    return "세그먼트가 0개라 번역할 대상이 없다. ar5iv가 이 논문의 렌더를 제공하지 않거나 접근에 실패했다.";
+    if (result.segmentationStatus === "upstream-error") {
+      return "ar5iv 서버가 5xx를 돌려줬다. 일시적 장애일 수 있으니 잠시 후 다시 재처리해본다.";
+    }
+    return (
+      "ar5iv 미러가 이 논문의 HTML 렌더를 제공하지 않는다(보통 수식이 많거나 최신 업로드 직후 논문). " +
+      "M0에서는 ar5iv만 쓰고 있으니 이 논문은 번역 대상이 될 수 없다. " +
+      "M1에서 PDF 기반 파서가 붙으면 다시 시도 가능하다."
+    );
   }
   if (result.draftStatus === "failed") {
     return `${result.segmentCount}개 세그먼트 전부에 대해 초벌이 실패했다. 실패한 세그먼트는 원문이 그대로 text에 남는다. GEMINI_API_KEY와 rate limit을 확인한다.`;
