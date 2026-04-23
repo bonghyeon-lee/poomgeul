@@ -1,0 +1,5 @@
+pnpm -r run typecheck
+pnpm format:check
+pnpm lint
+pnpm --filter @poomgeul/api run test:unit
+pnpm --filter @poomgeul/web run test
