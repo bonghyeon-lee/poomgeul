@@ -34,7 +34,7 @@ function stubProvider(
 describe("TranslationDraftService.draftAll", () => {
   it("returns skipped status and leaves originalText when provider is not configured", async () => {
     const provider = stubProvider({ isConfigured: () => false });
-    const svc = new TranslationDraftService(provider);
+    const svc = new TranslationDraftService(provider, { minCallIntervalMs: 0 });
     const result = await svc.draftAll(segs({ originalText: "hi" }, { originalText: "bye" }));
     expect(result.status).toBe("skipped");
     expect(result.drafts[0]!.text).toBe("hi");
@@ -58,7 +58,7 @@ describe("TranslationDraftService.draftAll", () => {
         };
       },
     });
-    const svc = new TranslationDraftService(provider);
+    const svc = new TranslationDraftService(provider, { minCallIntervalMs: 0 });
     const input = segs(
       { kind: "body", originalText: "body a" },
       { kind: "caption", originalText: "caption a" },
@@ -93,7 +93,7 @@ describe("TranslationDraftService.draftAll", () => {
         };
       },
     });
-    const svc = new TranslationDraftService(provider);
+    const svc = new TranslationDraftService(provider, { minCallIntervalMs: 0 });
     const result = await svc.draftAll(
       segs(
         { originalText: "a" },
@@ -119,7 +119,7 @@ describe("TranslationDraftService.draftAll", () => {
         });
       },
     });
-    const svc = new TranslationDraftService(provider);
+    const svc = new TranslationDraftService(provider, { minCallIntervalMs: 0 });
     const result = await svc.draftAll(
       segs({ originalText: "a" }, { originalText: "b" }, { originalText: "c" }),
     );
@@ -153,13 +153,78 @@ describe("TranslationDraftService.draftAll", () => {
         };
       },
     });
-    const svc = new TranslationDraftService(provider, { rateLimitRetryDelayMs: 0 });
+    const svc = new TranslationDraftService(provider, {
+      rateLimitRetryDelayMs: 0,
+      minCallIntervalMs: 0,
+    });
     const result = await svc.draftAll(segs({ originalText: "a" }, { originalText: "b" }));
     expect(result.status).toBe("ok");
     expect(result.succeeded).toBe(2);
     expect(result.failed).toBe(0);
     // 첫 세그먼트에 1회 재시도 + 두 번째 세그먼트 1회 = 총 3 호출.
     expect(calls).toBe(3);
+  });
+
+  it("waits at least minCallIntervalMs between successful provider calls", async () => {
+    const callTimes: number[] = [];
+    const provider = stubProvider({
+      translate: async () => {
+        callTimes.push(Date.now());
+        return {
+          text: "번역",
+          model: "gemini-2.5-flash",
+          promptHash: "deadbeef",
+          promptVersion: "translate.en-ko.v1",
+          inputTokens: 1,
+          outputTokens: 1,
+          latencyMs: 1,
+        };
+      },
+    });
+    const interval = 50;
+    const svc = new TranslationDraftService(provider, { minCallIntervalMs: interval });
+    await svc.draftAll(segs({ originalText: "a" }, { originalText: "b" }));
+    expect(callTimes).toHaveLength(2);
+    const gap = callTimes[1]! - callTimes[0]!;
+    // 간격이 최소 interval만큼은 확보됐어야 함(여유 -10ms).
+    expect(gap).toBeGreaterThanOrEqual(interval - 10);
+  });
+
+  it("honors Gemini retryAfterMs on first 429 before retrying", async () => {
+    let calls = 0;
+    const retryAfter = 50;
+    const provider = stubProvider({
+      translate: async () => {
+        calls += 1;
+        if (calls === 1) {
+          throw new TranslationProviderError("Gemini responded with HTTP 429", {
+            httpStatus: 429,
+            retryAfterMs: retryAfter,
+          });
+        }
+        return {
+          text: "번역",
+          model: "gemini-2.5-flash",
+          promptHash: "deadbeef",
+          promptVersion: "translate.en-ko.v1",
+          inputTokens: 1,
+          outputTokens: 1,
+          latencyMs: 1,
+        };
+      },
+    });
+    // 기본 retryDelay를 일부러 1ms로 낮춰, 서비스가 err.retryAfterMs(50ms)를 우선 사용하는지 본다.
+    const svc = new TranslationDraftService(provider, {
+      rateLimitRetryDelayMs: 1,
+      minCallIntervalMs: 0,
+    });
+    const start = Date.now();
+    const result = await svc.draftAll(segs({ originalText: "a" }));
+    const elapsed = Date.now() - start;
+    expect(result.status).toBe("ok");
+    expect(calls).toBe(2);
+    // retryAfter(50ms)만큼은 기다렸어야 함(여유 오차 20ms).
+    expect(elapsed).toBeGreaterThanOrEqual(retryAfter - 10);
   });
 
   it("stops calling the provider when the retry after 429 also returns 429", async () => {
@@ -172,7 +237,10 @@ describe("TranslationDraftService.draftAll", () => {
         });
       },
     });
-    const svc = new TranslationDraftService(provider, { rateLimitRetryDelayMs: 0 });
+    const svc = new TranslationDraftService(provider, {
+      rateLimitRetryDelayMs: 0,
+      minCallIntervalMs: 0,
+    });
     const result = await svc.draftAll(
       segs(
         { originalText: "a" },

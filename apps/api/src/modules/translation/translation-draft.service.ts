@@ -35,6 +35,13 @@ export type DraftAllResult = {
 export const RATE_LIMIT_RETRY_DELAY_MS = 8_000;
 
 /**
+ * 성공한 호출 사이 강제 최소 간격. Gemini Free tier의 RPM 15 상한을 보수적으로 지키려면
+ * 호출 간 4초 이상(= 분당 15회 이하)가 되어야 한다. 지연 자체를 포함한 호출 주기가 이보다
+ * 짧으면 추가 sleep으로 맞춘다.
+ */
+export const DEFAULT_MIN_CALL_INTERVAL_MS = 4_000;
+
+/**
  * Segment[]를 받아 TranslationSegment INSERT 값을 돌려준다. LLM Provider가 설정되지
  * 않았거나 호출이 실패하면 원문을 text에 그대로 담고 aiDraftText는 null — Reader UI는
  * "(번역 대기)" 대신 원문을 보여주어 최소 가독성을 확보한다.
@@ -52,13 +59,15 @@ export const RATE_LIMIT_RETRY_DELAY_MS = 8_000;
 export class TranslationDraftService {
   private readonly logger = new Logger(TranslationDraftService.name);
   private readonly retryDelayMs: number;
+  private readonly minCallIntervalMs: number;
 
   constructor(
     @Inject(TRANSLATION_PROVIDER)
     private readonly provider: GeminiTranslationProvider,
-    options?: { rateLimitRetryDelayMs?: number },
+    options?: { rateLimitRetryDelayMs?: number; minCallIntervalMs?: number },
   ) {
     this.retryDelayMs = options?.rateLimitRetryDelayMs ?? RATE_LIMIT_RETRY_DELAY_MS;
+    this.minCallIntervalMs = options?.minCallIntervalMs ?? DEFAULT_MIN_CALL_INTERVAL_MS;
   }
 
   async draftAll(segments: SegmentInput[]): Promise<DraftAllResult> {
@@ -78,6 +87,7 @@ export class TranslationDraftService {
     let failed = 0;
     let rateLimited = false;
     let permanentErr = false;
+    let lastCallFinishedAt = 0;
     const drafts: DraftedSegment[] = [];
 
     for (const seg of segments) {
@@ -93,7 +103,15 @@ export class TranslationDraftService {
         continue;
       }
 
+      // RPM 상한 준수: 직전 호출 종료 후 minCallIntervalMs 이상 지날 때까지 기다린다.
+      if (this.minCallIntervalMs > 0 && lastCallFinishedAt > 0) {
+        const elapsed = Date.now() - lastCallFinishedAt;
+        const slack = this.minCallIntervalMs - elapsed;
+        if (slack > 0) await sleep(slack);
+      }
+
       const outcome = await this.translateWithRetry(seg);
+      lastCallFinishedAt = Date.now();
       switch (outcome.kind) {
         case "ok":
           drafts.push({
@@ -168,11 +186,12 @@ export class TranslationDraftService {
       };
     } catch (err) {
       if (err instanceof TranslationProviderError && err.isRateLimited) {
-        // 첫 429: 짧게 쉬고 한 번 더 시도한다. 두 번째에도 429면 상위가 배치 중단.
+        // 첫 429: provider가 준 retryDelay를 우선 존중, 없으면 기본 backoff.
+        const waitMs = err.retryAfterMs ?? this.retryDelayMs;
         this.logger.warn(
-          `rate limit on first attempt for segment order=${seg.order}; backing off ${this.retryDelayMs}ms and retrying once`,
+          `rate limit on first attempt for segment order=${seg.order}; backing off ${waitMs}ms ${err.retryAfterMs !== undefined ? "(retryDelay from Gemini)" : "(default)"} and retrying once`,
         );
-        await sleep(this.retryDelayMs);
+        await sleep(waitMs);
         try {
           const retry = await this.provider.translate({ text: seg.originalText });
           return {

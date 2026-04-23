@@ -72,6 +72,27 @@ describe("GeminiTranslationProvider", () => {
     ).rejects.toThrow(/HTTP 429/);
   });
 
+  it("parses retryDelay from a Gemini 429 body into retryAfterMs", async () => {
+    const rateBody = JSON.stringify({
+      error: {
+        code: 429,
+        message: "quota exceeded",
+        details: [{ "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "40s" }],
+      },
+    });
+    mockFetch([{ status: 429, body: rateBody }]);
+    try {
+      await new GeminiTranslationProvider({ apiKey: "test" }).translate({ text: "x" });
+      throw new Error("expected throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(TranslationProviderError);
+      const e = err as TranslationProviderError;
+      expect(e.httpStatus).toBe(429);
+      expect(e.isRateLimited).toBe(true);
+      expect(e.retryAfterMs).toBe(40_000);
+    }
+  });
+
   it("throws TranslationProviderError when the response has no candidate text", async () => {
     mockFetch([{ body: { candidates: [{ content: { parts: [] } }] } }]);
     await expect(

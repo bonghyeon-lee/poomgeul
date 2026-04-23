@@ -17,11 +17,17 @@ import { loadPrompt, type LoadedPrompt } from "./prompt-loader.js";
 export class TranslationProviderError extends Error {
   override readonly cause?: unknown;
   readonly httpStatus?: number;
-  constructor(message: string, opts?: { cause?: unknown; httpStatus?: number }) {
+  /** Gemini RetryInfo.retryDelay가 응답에 들어있으면 그 값(ms). 없으면 undefined. */
+  readonly retryAfterMs?: number;
+  constructor(
+    message: string,
+    opts?: { cause?: unknown; httpStatus?: number; retryAfterMs?: number },
+  ) {
     super(message);
     this.name = "TranslationProviderError";
     this.cause = opts?.cause;
     this.httpStatus = opts?.httpStatus;
+    this.retryAfterMs = opts?.retryAfterMs;
   }
 
   /** 429 또는 메시지에 quota/rate 포함. 429 본문이 "exceeded your current quota"인 경우 등. */
@@ -35,6 +41,19 @@ export class TranslationProviderError extends Error {
     if (this.httpStatus === 401 || this.httpStatus === 403) return true;
     return /API key|permission|invalid argument|unauthorized/i.test(this.message);
   }
+}
+
+/**
+ * Gemini error body 안의 RetryInfo.retryDelay("40s" 또는 "40.5s")를 ms로 파싱.
+ * 못 찾으면 undefined.
+ */
+export function parseGeminiRetryDelay(rawBody: string): number | undefined {
+  // body는 보통 JSON이지만 일부 경로는 plain text로 온다. 정규식이 양쪽 다 처리.
+  const match = rawBody.match(/"retryDelay"\s*:\s*"([0-9.]+)s"/);
+  if (!match) return undefined;
+  const seconds = Number(match[1]);
+  if (!Number.isFinite(seconds) || seconds < 0) return undefined;
+  return Math.round(seconds * 1000);
 }
 
 export type TranslationRequest = {
@@ -150,9 +169,10 @@ export class GeminiTranslationProvider {
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
+      const retryAfterMs = res.status === 429 ? parseGeminiRetryDelay(text) : undefined;
       throw new TranslationProviderError(
         `Gemini responded with HTTP ${res.status}: ${text.slice(0, 200)}`,
-        { httpStatus: res.status },
+        { httpStatus: res.status, retryAfterMs },
       );
     }
 
