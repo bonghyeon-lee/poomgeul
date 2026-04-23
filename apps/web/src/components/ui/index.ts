@@ -10,6 +10,9 @@ export type { ChipProps, ProposalStatus } from "./Chip";
 export { Eyebrow } from "./Eyebrow";
 export type { EyebrowProps } from "./Eyebrow";
 
+export { Input, Textarea } from "./Input";
+export type { InputProps, TextareaProps } from "./Input";
+
 export { LicenseBadge } from "./LicenseBadge";
 export type { LicenseBadgeProps, LicenseKind } from "./LicenseBadge";
 
