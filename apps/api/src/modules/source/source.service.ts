@@ -55,6 +55,21 @@ export type CreateTranslationResult =
     }
   | Exclude<LicenseLookupResult, { outcome: "allowed" }>;
 
+export type ReprocessResult =
+  | {
+      outcome: "reprocessed";
+      sourceId: string;
+      translationId: string;
+      slug: string;
+      segmentCount: number;
+      segmentationStatus: "ok" | "skipped" | "upstream-error";
+      draftStatus: "ok" | "skipped" | "partial" | "failed";
+      draftSucceeded: number;
+      draftFailed: number;
+    }
+  | { outcome: "not-found"; reason: string }
+  | { outcome: "unsupported-format"; reason: string };
+
 const DEV_SEED_EMAIL = "dev-seed@poomgeul.invalid";
 
 @Injectable()
@@ -234,6 +249,138 @@ export class SourceService {
     };
   }
 
+  /**
+   * 이미 존재하는 번역본에 대해 세그먼트 분할과 LLM 초벌을 다시 돌린다.
+   * 기존 segments / translationSegments를 비우고 채워 넣는다(멱등).
+   *
+   * 트리거 경로: Reader의 PendingSegmentsView "재처리" 버튼. 자동 재시도는 없다.
+   * LLM 호출 비용과 arXiv/Gemini rate limit 때문에 사용자 명시적 트리거로만 돈다.
+   */
+  async reprocess(slug: string): Promise<ReprocessResult> {
+    const trRow = await this.db
+      .select({
+        translationId: translations.translationId,
+        sourceId: translations.sourceId,
+        leadId: translations.leadId,
+        slug: translations.slug,
+        attributionSource: sources.attributionSource,
+      })
+      .from(translations)
+      .innerJoin(sources, eq(sources.sourceId, translations.sourceId))
+      .where(eq(translations.slug, slug))
+      .limit(1);
+
+    const tr = trRow[0];
+    if (!tr) {
+      return { outcome: "not-found", reason: `slug ${slug}에 해당하는 번역본이 없다.` };
+    }
+
+    const bareId = extractArxivBareId(tr.attributionSource);
+    if (!bareId) {
+      return {
+        outcome: "unsupported-format",
+        reason: `attributionSource ${tr.attributionSource}는 arXiv URL이 아니다. M0는 arXiv만 재처리 가능.`,
+      };
+    }
+
+    // ar5iv fetch + parse (트랜잭션 바깥).
+    let parsedSegments: ParsedSegment[] = [];
+    let segmentationStatus: "ok" | "skipped" | "upstream-error" = "ok";
+    try {
+      const html = await this.ar5iv.fetchHtml(bareId);
+      parsedSegments = parseAr5ivHtml(html);
+      if (parsedSegments.length === 0) {
+        segmentationStatus = "skipped";
+        this.logger.warn(`ar5iv returned HTML for ${bareId} but parser produced 0 segments`);
+      }
+    } catch (err) {
+      if (err instanceof Ar5ivNotFoundError) {
+        segmentationStatus = "skipped";
+        this.logger.warn(`ar5iv has no HTML for ${bareId}`);
+      } else if (err instanceof Ar5ivUpstreamError) {
+        segmentationStatus = "upstream-error";
+        this.logger.warn(`ar5iv fetch failed for ${bareId}: ${err.message}`);
+      } else {
+        throw err;
+      }
+    }
+
+    // Stage 1: 기존 segments / translationSegments 지우고 새 segments INSERT.
+    const stage1 = await this.db.transaction(async (tx) => {
+      // ON DELETE CASCADE 덕분에 segments 삭제가 translation_segments까지 정리하지만,
+      // translationSegments 자체 FK가 segments.segment_id → 새 INSERT와 충돌하지 않게 명시 삭제.
+      await tx
+        .delete(translationSegments)
+        .where(eq(translationSegments.translationId, tr.translationId));
+      await tx.delete(segments).where(eq(segments.sourceId, tr.sourceId));
+
+      let segmentRows: Array<{
+        segmentId: string;
+        order: number;
+        kind: "body" | "caption" | "footnote" | "reference";
+        originalText: string;
+      }> = [];
+      if (parsedSegments.length > 0) {
+        const values = parsedSegments.map((s) => ({
+          sourceId: tr.sourceId,
+          order: s.order,
+          originalText: s.text,
+          kind: s.kind,
+        }));
+        const inserted = await tx
+          .insert(segments)
+          .values(values)
+          .returning({
+            segmentId: segments.segmentId,
+            order: segments.order,
+            kind: segments.kind,
+            originalText: segments.originalText,
+          });
+        segmentRows = inserted;
+      }
+      return segmentRows;
+    });
+
+    // Stage 2: LLM 초벌.
+    const draftResult = await this.draft.draftAll(
+      stage1.map((r) => ({
+        segmentId: r.segmentId,
+        order: r.order,
+        kind: r.kind,
+        originalText: r.originalText,
+      })),
+    );
+
+    // Stage 3: translation_segments INSERT.
+    await this.db.transaction(async (tx) => {
+      if (draftResult.drafts.length > 0) {
+        await tx.insert(translationSegments).values(
+          draftResult.drafts.map((d) => ({
+            translationId: tr.translationId,
+            segmentId: d.segmentId,
+            text: d.text,
+            aiDraftText: d.aiDraftText,
+            aiDraftSource: d.aiDraftSource,
+            lastEditorId: tr.leadId,
+            status: d.status,
+          })),
+        );
+      }
+    });
+
+    return {
+      outcome: "reprocessed",
+      sourceId: tr.sourceId,
+      translationId: tr.translationId,
+      slug: tr.slug,
+      segmentCount: parsedSegments.length,
+      segmentationStatus,
+      draftStatus: draftResult.status,
+      draftSucceeded: draftResult.succeeded,
+      draftFailed: draftResult.failed,
+    };
+  }
+
   private async ensureSeedUser(): Promise<string> {
     const existing = await this.db
       .select({ id: users.id })
@@ -256,6 +403,17 @@ function canonicalArxivUrl(parsed: ArxivId): string {
   return parsed.version
     ? `https://arxiv.org/abs/${parsed.bareId}v${parsed.version}`
     : `https://arxiv.org/abs/${parsed.bareId}`;
+}
+
+/**
+ * attributionSource에서 bareId를 뽑는다.
+ *   https://arxiv.org/abs/2604.00295      → "2604.00295"
+ *   https://arxiv.org/abs/2604.00295v2    → "2604.00295"
+ * arXiv URL이 아니면 null.
+ */
+function extractArxivBareId(attributionSource: string): string | null {
+  const m = attributionSource.match(/arxiv\.org\/abs\/(\d{4}\.\d{4,5})(?:v\d+)?/);
+  return m ? m[1]! : null;
 }
 
 /**
