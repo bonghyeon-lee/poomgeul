@@ -15,7 +15,16 @@
  */
 
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import { type Db, eq, segments, sources, translations, translationSegments, users } from "@poomgeul/db";
+import {
+  and,
+  type Db,
+  eq,
+  segments,
+  sources,
+  translations,
+  translationSegments,
+  users,
+} from "@poomgeul/db";
 
 import { TranslationDraftService } from "../translation/translation-draft.service.js";
 import {
@@ -151,7 +160,9 @@ export class SourceService {
     }
 
     // Stage 1: source + segments를 먼저 커밋해 segment id를 받아온다.
-    // LLM 호출이 길어 트랜잭션을 hold하면 DB 연결 풀을 점유하므로 단계를 나눈다.
+    // 이전 Import가 도중에 실패했을 경우를 대비해 멱등하게 동작한다 — 같은
+    // (attribution_source, source_version)이 있으면 그 row를 재사용하고, segments는
+    // 지우고 다시 넣는다(reprocess와 같은 복구 경로).
     const stage1 = await this.db.transaction(async (tx) => {
       const insertedSource = await tx
         .insert(sources)
@@ -164,11 +175,28 @@ export class SourceService {
           sourceVersion,
           importedBy: importerId,
         })
+        .onConflictDoUpdate({
+          target: [sources.attributionSource, sources.sourceVersion],
+          set: {
+            // 충돌 시 제목·저자·라이선스를 최신 arXiv 응답으로 갱신. importedAt은 건드리지 않는다.
+            title: lookupResult.title,
+            author: lookupResult.authors,
+            license: lookupResult.license,
+          },
+        })
         .returning();
       const source = insertedSource[0];
       if (!source) throw new Error("insert into sources returned no row");
 
-      let segmentRows: Array<{ segmentId: string; order: number; kind: "body" | "caption" | "footnote" | "reference"; originalText: string }> = [];
+      // 기존 segments를 지우고 새로 넣는다 — translation_segments는 FK CASCADE로 함께 정리된다.
+      await tx.delete(segments).where(eq(segments.sourceId, source.sourceId));
+
+      let segmentRows: Array<{
+        segmentId: string;
+        order: number;
+        kind: "body" | "caption" | "footnote" | "reference";
+        originalText: string;
+      }> = [];
       if (parsedSegments.length > 0) {
         const values = parsedSegments.map((s) => ({
           sourceId: source.sourceId,
@@ -201,21 +229,48 @@ export class SourceService {
       })),
     );
 
-    // Stage 3: translation + translation_segments 커밋.
+    // Stage 3: translation + translation_segments 커밋. 같은 (sourceId, targetLang) ko가
+    // 이미 있으면 재사용(고아 translation 복구). 없으면 새로 생성. translation_segments는
+    // FK CASCADE가 segments 삭제 때 이미 지워졌을 것이므로 새로 INSERT만 하면 된다.
     const stage3 = await this.db.transaction(async (tx) => {
-      const insertedTranslation = await tx
-        .insert(translations)
-        .values({
-          sourceId: stage1.source.sourceId,
-          targetLang: "ko",
-          leadId: importerId,
-          status: "draft",
-          license: lookupResult.license,
-          slug: baseSlug,
+      const existing = await tx
+        .select({
+          translationId: translations.translationId,
+          slug: translations.slug,
         })
-        .returning();
-      const translation = insertedTranslation[0];
-      if (!translation) throw new Error("insert into translations returned no row");
+        .from(translations)
+        .where(
+          and(
+            eq(translations.sourceId, stage1.source.sourceId),
+            eq(translations.targetLang, "ko"),
+          ),
+        )
+        .limit(1);
+
+      let translation: { translationId: string; slug: string };
+      if (existing[0]) {
+        translation = existing[0];
+      } else {
+        const inserted = await tx
+          .insert(translations)
+          .values({
+            sourceId: stage1.source.sourceId,
+            targetLang: "ko",
+            leadId: importerId,
+            status: "draft",
+            license: lookupResult.license,
+            slug: baseSlug,
+          })
+          .returning();
+        const row = inserted[0];
+        if (!row) throw new Error("insert into translations returned no row");
+        translation = { translationId: row.translationId, slug: row.slug };
+      }
+
+      // translation_segments는 FK CASCADE로 이미 비어 있을 것이지만 방어적으로 한 번 더 비운다.
+      await tx
+        .delete(translationSegments)
+        .where(eq(translationSegments.translationId, translation.translationId));
 
       if (draftResult.drafts.length > 0) {
         await tx.insert(translationSegments).values(
