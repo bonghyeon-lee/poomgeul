@@ -93,6 +93,28 @@ describe("GeminiTranslationProvider", () => {
     }
   });
 
+  it("classifies 503 UNAVAILABLE as isServiceUnavailable", async () => {
+    const body = JSON.stringify({
+      error: {
+        code: 503,
+        message: "This model is currently experiencing high demand.",
+        status: "UNAVAILABLE",
+      },
+    });
+    mockFetch([{ status: 503, body }]);
+    try {
+      await new GeminiTranslationProvider({ apiKey: "test" }).translate({ text: "x" });
+      throw new Error("expected throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(TranslationProviderError);
+      const e = err as TranslationProviderError;
+      expect(e.httpStatus).toBe(503);
+      expect(e.isServiceUnavailable).toBe(true);
+      expect(e.isRateLimited).toBe(false);
+      expect(e.isPermanent).toBe(false);
+    }
+  });
+
   it("throws TranslationProviderError when the response has no candidate text", async () => {
     mockFetch([{ body: { candidates: [{ content: { parts: [] } }] } }]);
     await expect(

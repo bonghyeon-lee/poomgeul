@@ -41,6 +41,16 @@ export class TranslationProviderError extends Error {
     if (this.httpStatus === 401 || this.httpStatus === 403) return true;
     return /API key|permission|invalid argument|unauthorized/i.test(this.message);
   }
+
+  /**
+   * 503 UNAVAILABLE — Gemini 모델이 일시적 부하를 받는 상태. "This model is currently
+   * experiencing high demand" 류의 메시지. 429와 달리 쿼터는 남아 있으니 짧은 backoff로
+   * 재시도해볼 가치가 있다.
+   */
+  get isServiceUnavailable(): boolean {
+    if (this.httpStatus === 503) return true;
+    return /UNAVAILABLE|experiencing high demand/i.test(this.message);
+  }
 }
 
 /**

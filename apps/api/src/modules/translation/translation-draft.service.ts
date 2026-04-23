@@ -46,6 +46,12 @@ export const DEFAULT_MIN_CALL_INTERVAL_MS = 4_000;
 export const DEFAULT_CHUNK_SIZE = 8;
 
 /**
+ * 503 UNAVAILABLE 응답에 대한 지수 backoff 스케줄. Gemini 쪽 부하가 내려오는 시간을 감안해
+ * 짧게 시작해 2배씩 늘려간다. 전부 소진해도 503이면 배치 중단(쿼터와 별개로 호출 의미 없음).
+ */
+export const DEFAULT_UNAVAILABLE_BACKOFF_MS = [500, 2_000, 4_000];
+
+/**
  * Segment[]를 받아 묶음(batch) 번역을 돌려 TranslationSegment INSERT 값을 돌려준다.
  *
  * 전략:
@@ -63,6 +69,7 @@ export class TranslationDraftService {
   private readonly retryDelayMs: number;
   private readonly minCallIntervalMs: number;
   private readonly chunkSize: number;
+  private readonly unavailableBackoffMs: readonly number[];
 
   constructor(
     @Inject(TRANSLATION_PROVIDER)
@@ -71,11 +78,14 @@ export class TranslationDraftService {
       rateLimitRetryDelayMs?: number;
       minCallIntervalMs?: number;
       chunkSize?: number;
+      unavailableBackoffMs?: readonly number[];
     },
   ) {
     this.retryDelayMs = options?.rateLimitRetryDelayMs ?? RATE_LIMIT_RETRY_DELAY_MS;
     this.minCallIntervalMs = options?.minCallIntervalMs ?? DEFAULT_MIN_CALL_INTERVAL_MS;
     this.chunkSize = Math.max(1, options?.chunkSize ?? DEFAULT_CHUNK_SIZE);
+    this.unavailableBackoffMs =
+      options?.unavailableBackoffMs ?? DEFAULT_UNAVAILABLE_BACKOFF_MS;
   }
 
   async draftAll(segments: SegmentInput[]): Promise<DraftAllResult> {
@@ -106,13 +116,14 @@ export class TranslationDraftService {
     let failed = 0;
     let rateLimited = false;
     let permanentErr = false;
+    let serviceUnavailable = false;
     let lastCallFinishedAt = 0;
 
     // chunk 루프.
     for (let i = 0; i < translatable.length; i += this.chunkSize) {
       const chunk = translatable.slice(i, i + this.chunkSize);
 
-      if (rateLimited || permanentErr) {
+      if (rateLimited || permanentErr || serviceUnavailable) {
         for (const seg of chunk) {
           bySegmentId.set(seg.segmentId, fallbackDraft(seg));
           failed += 1;
@@ -170,12 +181,26 @@ export class TranslationDraftService {
         continue;
       }
 
+      if (outcome.kind === "service-unavailable") {
+        this.logger.warn(
+          `Gemini 503 UNAVAILABLE persisted after ${this.unavailableBackoffMs.length} retries at chunk starting order=${chunk[0]!.order}; aborting remaining chunks (${
+            translatable.length - i - chunk.length
+          } translatable segment(s) will keep original text)`,
+        );
+        serviceUnavailable = true;
+        for (const seg of chunk) {
+          bySegmentId.set(seg.segmentId, fallbackDraft(seg));
+          failed += 1;
+        }
+        continue;
+      }
+
       // transient/schema/misc 실패 → chunk 안의 세그먼트를 개별 translate()로 살려본다.
       this.logger.warn(
         `chunk translate failed at order=${chunk[0]!.order}: ${outcome.message}; falling back to per-segment calls`,
       );
       for (const seg of chunk) {
-        if (rateLimited || permanentErr) {
+        if (rateLimited || permanentErr || serviceUnavailable) {
           bySegmentId.set(seg.segmentId, fallbackDraft(seg));
           failed += 1;
           continue;
@@ -207,6 +232,11 @@ export class TranslationDraftService {
             permanentErr = true;
             this.logger.warn(
               `permanent error on single fallback at order=${seg.order}; aborting`,
+            );
+          } else if (singleOutcome.kind === "service-unavailable") {
+            serviceUnavailable = true;
+            this.logger.warn(
+              `503 UNAVAILABLE on single fallback at order=${seg.order}; aborting`,
             );
           } else {
             this.logger.warn(
@@ -240,12 +270,14 @@ export class TranslationDraftService {
       }
     | { kind: "rate-limited"; message: string }
     | { kind: "permanent"; message: string }
+    | { kind: "service-unavailable"; message: string }
     | { kind: "transient"; message: string }
   > {
     const inputs: BatchTranslationItem[] = chunk.map((s) => ({
       id: s.segmentId,
       text: s.originalText,
     }));
+
     try {
       const out = await this.provider.translateBatch(inputs);
       return {
@@ -253,11 +285,53 @@ export class TranslationDraftService {
         items: out.items,
         source: { model: out.model, promptHash: out.promptHash, version: out.promptVersion },
       };
-    } catch (err) {
-      if (err instanceof TranslationProviderError && err.isRateLimited) {
-        const waitMs = err.retryAfterMs ?? this.retryDelayMs;
+    } catch (firstErr) {
+      // 503 UNAVAILABLE: 지수 backoff로 여러 번 재시도. Gemini 쪽 부하가 내려올 때까지.
+      if (firstErr instanceof TranslationProviderError && firstErr.isServiceUnavailable) {
+        let lastErr: unknown = firstErr;
+        for (let attempt = 0; attempt < this.unavailableBackoffMs.length; attempt += 1) {
+          const waitMs = this.unavailableBackoffMs[attempt]!;
+          this.logger.warn(
+            `503 UNAVAILABLE on batch; backoff ${waitMs}ms (attempt ${attempt + 1}/${this.unavailableBackoffMs.length}) and retrying`,
+          );
+          await sleep(waitMs);
+          try {
+            const retry = await this.provider.translateBatch(inputs);
+            return {
+              kind: "ok",
+              items: retry.items,
+              source: {
+                model: retry.model,
+                promptHash: retry.promptHash,
+                version: retry.promptVersion,
+              },
+            };
+          } catch (retryErr) {
+            lastErr = retryErr;
+            if (retryErr instanceof TranslationProviderError && retryErr.isServiceUnavailable) {
+              continue; // 다음 backoff attempt.
+            }
+            // 다른 종류 에러로 바뀌었으면 즉시 해당 카테고리로 분류.
+            if (retryErr instanceof TranslationProviderError && retryErr.isRateLimited) {
+              return { kind: "rate-limited", message: retryErr.message };
+            }
+            if (retryErr instanceof TranslationProviderError && retryErr.isPermanent) {
+              return { kind: "permanent", message: retryErr.message };
+            }
+            return {
+              kind: "transient",
+              message: retryErr instanceof Error ? retryErr.message : String(retryErr),
+            };
+          }
+        }
+        const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+        return { kind: "service-unavailable", message: msg };
+      }
+
+      if (firstErr instanceof TranslationProviderError && firstErr.isRateLimited) {
+        const waitMs = firstErr.retryAfterMs ?? this.retryDelayMs;
         this.logger.warn(
-          `rate limit on batch; backing off ${waitMs}ms ${err.retryAfterMs !== undefined ? "(retryDelay from Gemini)" : "(default)"} and retrying once`,
+          `rate limit on batch; backing off ${waitMs}ms ${firstErr.retryAfterMs !== undefined ? "(retryDelay from Gemini)" : "(default)"} and retrying once`,
         );
         await sleep(waitMs);
         try {
@@ -276,14 +350,18 @@ export class TranslationDraftService {
           if (retryErr instanceof TranslationProviderError && retryErr.isRateLimited) {
             return { kind: "rate-limited", message: msg };
           }
+          if (retryErr instanceof TranslationProviderError && retryErr.isServiceUnavailable) {
+            return { kind: "service-unavailable", message: msg };
+          }
           if (retryErr instanceof TranslationProviderError && retryErr.isPermanent) {
             return { kind: "permanent", message: msg };
           }
           return { kind: "transient", message: msg };
         }
       }
-      const message = err instanceof Error ? err.message : String(err);
-      if (err instanceof TranslationProviderError && err.isPermanent) {
+
+      const message = firstErr instanceof Error ? firstErr.message : String(firstErr);
+      if (firstErr instanceof TranslationProviderError && firstErr.isPermanent) {
         return { kind: "permanent", message };
       }
       return { kind: "transient", message };
@@ -298,6 +376,7 @@ export class TranslationDraftService {
       }
     | { kind: "rate-limited"; message: string }
     | { kind: "permanent"; message: string }
+    | { kind: "service-unavailable"; message: string }
     | { kind: "transient"; message: string }
   > {
     try {
@@ -308,6 +387,35 @@ export class TranslationDraftService {
         source: { model: out.model, promptHash: out.promptHash, version: out.promptVersion },
       };
     } catch (err) {
+      if (err instanceof TranslationProviderError && err.isServiceUnavailable) {
+        // 개별 호출은 한 번만 짧게 재시도. 503이 지속되면 chunk 단위와 마찬가지로 배치 중단.
+        const waitMs = this.unavailableBackoffMs[0] ?? 500;
+        await sleep(waitMs);
+        try {
+          const retry = await this.provider.translate({ text: seg.originalText });
+          return {
+            kind: "ok",
+            text: retry.text,
+            source: {
+              model: retry.model,
+              promptHash: retry.promptHash,
+              version: retry.promptVersion,
+            },
+          };
+        } catch (retryErr) {
+          const msg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+          if (retryErr instanceof TranslationProviderError && retryErr.isServiceUnavailable) {
+            return { kind: "service-unavailable", message: msg };
+          }
+          if (retryErr instanceof TranslationProviderError && retryErr.isRateLimited) {
+            return { kind: "rate-limited", message: msg };
+          }
+          if (retryErr instanceof TranslationProviderError && retryErr.isPermanent) {
+            return { kind: "permanent", message: msg };
+          }
+          return { kind: "transient", message: msg };
+        }
+      }
       if (err instanceof TranslationProviderError && err.isRateLimited) {
         const waitMs = err.retryAfterMs ?? this.retryDelayMs;
         await sleep(waitMs);
@@ -326,6 +434,9 @@ export class TranslationDraftService {
           const msg = retryErr instanceof Error ? retryErr.message : String(retryErr);
           if (retryErr instanceof TranslationProviderError && retryErr.isRateLimited) {
             return { kind: "rate-limited", message: msg };
+          }
+          if (retryErr instanceof TranslationProviderError && retryErr.isServiceUnavailable) {
+            return { kind: "service-unavailable", message: msg };
           }
           if (retryErr instanceof TranslationProviderError && retryErr.isPermanent) {
             return { kind: "permanent", message: msg };

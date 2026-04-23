@@ -256,6 +256,62 @@ describe("TranslationDraftService.draftAll (batch chunks)", () => {
     expect(gap).toBeGreaterThanOrEqual(interval - 10);
   });
 
+  it("retries a batch 503 with exponential backoff and succeeds on later attempt", async () => {
+    let batchCalls = 0;
+    const provider = stubProvider({
+      translateBatch: async (inputs) => {
+        batchCalls += 1;
+        if (batchCalls <= 2) {
+          throw new TranslationProviderError(
+            `Gemini responded with HTTP 503: {"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}`,
+            { httpStatus: 503 },
+          );
+        }
+        return defaultBatch(inputs);
+      },
+    });
+    const svc = new TranslationDraftService(provider, {
+      minCallIntervalMs: 0,
+      unavailableBackoffMs: [0, 0, 0],
+    });
+    const result = await svc.draftAll(segs({ originalText: "a" }, { originalText: "b" }));
+    expect(result.status).toBe("ok");
+    expect(result.succeeded).toBe(2);
+    expect(result.failed).toBe(0);
+    // 처음 2회 503 + 3회차 성공 = 총 3회.
+    expect(batchCalls).toBe(3);
+  });
+
+  it("halts remaining chunks when 503 persists through all backoff attempts", async () => {
+    let batchCalls = 0;
+    const provider = stubProvider({
+      translateBatch: async () => {
+        batchCalls += 1;
+        throw new TranslationProviderError("Gemini responded with HTTP 503: UNAVAILABLE", {
+          httpStatus: 503,
+        });
+      },
+    });
+    const svc = new TranslationDraftService(provider, {
+      minCallIntervalMs: 0,
+      unavailableBackoffMs: [0, 0],
+      chunkSize: 2,
+    });
+    const result = await svc.draftAll(
+      segs(
+        { originalText: "a" },
+        { originalText: "b" },
+        { originalText: "c" },
+        { originalText: "d" },
+      ),
+    );
+    expect(result.status).toBe("failed");
+    expect(result.failed).toBe(4);
+    // 첫 chunk: 초기 1회 + backoff 2회 = 3회. 이후 chunk는 provider 호출 없이 fallback.
+    expect(batchCalls).toBe(3);
+    for (const d of result.drafts) expect(d.aiDraftText).toBeNull();
+  });
+
   it("honors Gemini retryAfterMs on first batch 429 before retrying", async () => {
     let batchCalls = 0;
     const retryAfter = 50;
