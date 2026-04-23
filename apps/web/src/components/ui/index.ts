@@ -10,5 +10,8 @@ export type { ChipProps, ProposalStatus } from "./Chip";
 export { Eyebrow } from "./Eyebrow";
 export type { EyebrowProps } from "./Eyebrow";
 
+export { LicenseBadge } from "./LicenseBadge";
+export type { LicenseBadgeProps, LicenseKind } from "./LicenseBadge";
+
 export { Logo } from "./Logo";
 export type { LogoProps, LogoVariant } from "./Logo";
