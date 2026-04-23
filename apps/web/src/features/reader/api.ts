@@ -64,6 +64,51 @@ function apiBase(): string {
   return process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
 }
 
+export type TranslationListItem = {
+  translationId: string;
+  slug: string;
+  targetLang: string;
+  status: TranslationStatus;
+  license: SourceLicense;
+  sourceId: string;
+  title: string;
+  authors: string[];
+  sourceLicense: SourceLicense;
+  sourceVersion: string;
+  importedAt: string;
+  leadDisplayName: string | null;
+  segmentCount: number;
+  translatedCount: number;
+};
+
+/**
+ * 최근 등록된 ko 번역본 목록을 API에서 가져온다. 서버 컴포넌트에서 /translations 페이지가 호출.
+ * API가 닿지 않으면 빈 배열 + 에러 문자열을 상위로 전달해 "API 꺼짐" 안내를 띄울 수 있게 한다.
+ */
+export async function loadTranslationList(
+  limit = 50,
+): Promise<{ items: TranslationListItem[]; error: string | null }> {
+  const url = `${apiBase()}/api/translations?limit=${limit}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "GET",
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+  } catch (err) {
+    return {
+      items: [],
+      error: `API 서버에 닿지 못했다: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+  if (!res.ok) {
+    return { items: [], error: `API 오류: HTTP ${res.status}` };
+  }
+  const body = (await res.json()) as TranslationListItem[];
+  return { items: body, error: null };
+}
+
 export async function loadReaderBundleFromApi(slug: string): Promise<ReaderBundle | null> {
   const url = `${apiBase()}/api/translations/${encodeURIComponent(slug)}`;
   let res: Response;

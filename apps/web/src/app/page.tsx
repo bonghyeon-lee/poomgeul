@@ -32,9 +32,12 @@ export default function Home() {
               원문은 위키처럼 공유하고, 번역본은 깃허브처럼 제안하고 머지한다.
             </p>
             <div className={styles.ctaRow}>
-              <Button href="/t/sparse-moe-low-resource-mt">샘플 번역본 읽기</Button>
+              <Button href="/translations">번역본 목록</Button>
               <Button variant="secondary" href="/import">
                 원문 가져오기
+              </Button>
+              <Button variant="ghost" href="/t/sparse-moe-low-resource-mt">
+                샘플 번역본
               </Button>
               <Button
                 variant="ghost"

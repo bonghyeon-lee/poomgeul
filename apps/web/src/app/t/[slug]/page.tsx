@@ -89,7 +89,7 @@ export default async function ReaderPage({
           <div className={styles.crumbs}>
             <Logo variant="mark" href="/" ariaLabel="poomgeul 홈" />
             <span className={styles.crumbsSep}>/</span>
-            <Link href="/">원문 목록</Link>
+            <Link href="/translations">번역본 목록</Link>
             <span className={styles.crumbsSep}>/</span>
             <span>{source.sourceVersion}</span>
           </div>
