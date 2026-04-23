@@ -1,8 +1,17 @@
-import { Controller, Get, Query } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, Inject, Post, Query } from "@nestjs/common";
+import {
+  ApiBody,
+  ApiOkResponse,
+  ApiOperation,
+  ApiProperty,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
+import { IsString, MaxLength } from "class-validator";
 
 import { SourceInputError, parseSourceInput } from "./input.js";
 import { LicenseLookupService, type LicenseLookupResult } from "./license-lookup.js";
+import { SourceService, type CreateTranslationResult } from "./source.service.js";
 
 export type LicenseLookupApiResult =
   | LicenseLookupResult
@@ -12,10 +21,34 @@ export type LicenseLookupApiResult =
       reason: string;
     };
 
+export type CreateApiResult =
+  | CreateTranslationResult
+  | {
+      outcome: "invalid-input";
+      code: "empty" | "unsupported";
+      reason: string;
+    };
+
+export class CreateSourceBody {
+  @ApiProperty({
+    description: "Raw user input — arXiv ID, arXiv URL, or DOI.",
+    example: "2310.12345",
+  })
+  @IsString()
+  @MaxLength(512)
+  input!: string;
+}
+
 @ApiTags("source")
 @Controller("sources")
 export class SourceController {
-  constructor(private readonly lookupService: LicenseLookupService) {}
+  // tsx dev 러너는 emitDecoratorMetadata를 생성하지 않아 Nest가 타입-기반 DI의
+  // 파라미터 토큰을 읽지 못한다. @Inject(Class)로 명시하면 메타데이터 없이도 주입된다.
+  // 빌드(node dist/main.js) 경로는 ts가 메타를 생성하므로 영향 없다.
+  constructor(
+    @Inject(LicenseLookupService) private readonly lookupService: LicenseLookupService,
+    @Inject(SourceService) private readonly sourceService: SourceService,
+  ) {}
 
   @Get("license")
   @ApiOperation({
@@ -43,18 +76,58 @@ export class SourceController {
     try {
       parsed = parseSourceInput(raw);
     } catch (err) {
-      if (err instanceof SourceInputError) {
-        return {
-          outcome: "invalid-input",
-          code: err.code,
-          reason:
-            err.code === "empty"
-              ? "arXiv ID나 URL을 입력한다."
-              : "인식할 수 없는 입력이다. 2310.12345 또는 https://arxiv.org/abs/... 형태로 넣는다.",
-        };
-      }
-      throw err;
+      return toInvalidInputResult(err);
     }
     return this.lookupService.lookup(parsed);
   }
+
+  @Post()
+  @ApiOperation({
+    summary: "Register a new Source + Translation (M0 import flow)",
+    description:
+      "Re-runs the license lookup, then creates Source and Translation rows " +
+      "in one transaction if the license is allowed. arXiv only in M0 — DOI " +
+      "returns `unsupported-format`. The segmentation pass (M0 #3) runs " +
+      "separately; Segment rows are empty on creation.",
+  })
+  @ApiBody({ type: CreateSourceBody })
+  @ApiOkResponse({
+    description:
+      "Creation result. `created` on success, `already-registered` if the source exists with a ko translation, or any of the lookup failure outcomes passthrough.",
+  })
+  async createSource(@Body() body: CreateSourceBody): Promise<CreateApiResult> {
+    const raw = typeof body?.input === "string" ? body.input : "";
+    let parsed;
+    try {
+      parsed = parseSourceInput(raw);
+    } catch (err) {
+      return toInvalidInputResult(err);
+    }
+    if (parsed.kind !== "arxiv") {
+      return {
+        outcome: "unsupported-format",
+        reason:
+          "M0는 arXiv 원문만 import한다. DOI 경로는 M1에서 Crossref·DOAJ 연동과 함께 추가된다.",
+      };
+    }
+    return this.sourceService.createFromArxiv(parsed);
+  }
+}
+
+function toInvalidInputResult(err: unknown): {
+  outcome: "invalid-input";
+  code: "empty" | "unsupported";
+  reason: string;
+} {
+  if (err instanceof SourceInputError) {
+    return {
+      outcome: "invalid-input",
+      code: err.code,
+      reason:
+        err.code === "empty"
+          ? "arXiv ID나 URL을 입력한다."
+          : "인식할 수 없는 입력이다. 2310.12345 또는 https://arxiv.org/abs/... 형태로 넣는다.",
+    };
+  }
+  throw err;
 }

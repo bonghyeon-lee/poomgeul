@@ -5,6 +5,7 @@ import { ArxivClient } from "./arxiv-client.js";
 import { ARXIV_CLIENT, LicenseLookupService } from "./license-lookup.js";
 import { SourceController } from "./source.controller.js";
 import { DB_TOKEN, SourceRepository } from "./source.repository.js";
+import { SourceService } from "./source.service.js";
 
 /**
  * Db 핸들을 소유하는 작은 holder. 모듈이 파괴될 때 postgres 풀을 닫는다.
@@ -45,6 +46,7 @@ class DbHolder implements OnModuleDestroy {
       useFactory: () => new ArxivClient(),
     },
     LicenseLookupService,
+    SourceService,
   ],
 })
 export class SourceModule {}
