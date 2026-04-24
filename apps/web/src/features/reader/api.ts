@@ -12,6 +12,7 @@
 
 import type {
   Contributor,
+  ProposalCommentItem,
   ProposalSummary,
   ReaderBundle,
   Segment,
@@ -127,6 +128,35 @@ export async function loadProposalsFromApi(slug: string): Promise<ProposalSummar
     status: p.status,
     createdAt: p.createdAt,
   }));
+}
+
+/**
+ * 단일 proposal의 댓글 목록. Reader에서 open proposal 행 아래 인라인으로
+ * 바로 표시하는 용도. 실패 시 빈 배열 폴백(댓글 섹션만 생략되도록).
+ */
+export async function loadProposalCommentsFromApi(
+  slug: string,
+  proposalId: string,
+): Promise<ProposalCommentItem[]> {
+  const url = `${apiBase()}/api/translations/${encodeURIComponent(slug)}/proposals/${encodeURIComponent(
+    proposalId,
+  )}/comments`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "GET",
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+  } catch {
+    return [];
+  }
+  if (!res.ok) return [];
+  try {
+    return (await res.json()) as ProposalCommentItem[];
+  } catch {
+    return [];
+  }
 }
 
 export type TranslationListItem = {

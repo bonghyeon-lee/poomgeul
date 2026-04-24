@@ -28,7 +28,7 @@ import type { User } from "@poomgeul/db";
 
 import { CurrentUser } from "../auth/current-user.decorator.js";
 import { SessionGuard } from "../auth/session.guard.js";
-import { CreateProposalBody, DecideProposalBody } from "./dto.js";
+import { CreateCommentBody, CreateProposalBody, DecideProposalBody } from "./dto.js";
 import {
   type ProposalComment,
   type ProposalDetail,
@@ -217,6 +217,35 @@ export class ProposalController {
     @Param("proposalId") proposalId: string,
   ): Promise<ProposalComment[]> {
     return this.service.listComments(slug, proposalId);
+  }
+
+  @Post(":proposalId/comments")
+  @UseGuards(SessionGuard)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: "Post a comment on a proposal (ADR-0006 C4)",
+    description:
+      "Any authenticated user can comment. Comments remain open on terminal " +
+      "proposals (merged/rejected/withdrawn/stale) so the post-resolution " +
+      "discussion can continue in place. Contribution (review_comment) is " +
+      "recorded per workflow-proposal.md §이벤트 발행.",
+  })
+  @ApiParam({ name: "slug", type: String })
+  @ApiParam({ name: "proposalId", type: String })
+  @ApiBody({ type: CreateCommentBody })
+  @ApiCreatedResponse({
+    description: "Comment created. Body: { commentId, body, createdAt, author: {...} }.",
+  })
+  @ApiBadRequestResponse({ description: "validation_failed — empty or oversized body." })
+  @ApiUnauthorizedResponse({ description: "No session cookie." })
+  @ApiNotFoundResponse({ description: "translation or proposal not found." })
+  async postComment(
+    @Param("slug") slug: string,
+    @Param("proposalId") proposalId: string,
+    @Body() body: CreateCommentBody,
+    @CurrentUser() user: User,
+  ): Promise<ProposalComment> {
+    return this.service.createComment(slug, proposalId, user.id, body);
   }
 }
 

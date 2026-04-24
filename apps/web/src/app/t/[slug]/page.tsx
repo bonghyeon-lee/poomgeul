@@ -7,8 +7,11 @@ import {
   findReaderBundleBySlug,
   listReaderSlugs,
   loadIsAuthed,
+  loadProposalCommentsFromApi,
   loadProposalsFromApi,
   loadReaderBundleFromApi,
+  ProposalCommentThread,
+  type ProposalCommentItem,
   ProposeButton,
   ReprocessButton,
   RetryFailedButton,
@@ -85,6 +88,21 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
   for (const p of proposals) {
     if (p.status !== "open") continue;
     openProposalBySegment.set(p.segmentId, p);
+  }
+
+  // open proposal별 댓글을 병렬 fetch. Reader bundle이 API 출처일 때만 의미가
+  // 있으므로 apiProposals.length > 0인 경우에만 실제 호출, 그 외에는 빈 맵.
+  // 실패는 API helper 안에서 [] 폴백 — Reader 섹션이 깨지지 않는다.
+  const commentsByProposalId = new Map<string, ProposalCommentItem[]>();
+  if (apiProposals.length > 0) {
+    const openProposalIds = Array.from(openProposalBySegment.values()).map((p) => p.proposalId);
+    const lists = await Promise.all(
+      openProposalIds.map((pid) => loadProposalCommentsFromApi(slug, pid)),
+    );
+    openProposalIds.forEach((pid, i) => {
+      const list = lists[i];
+      if (list) commentsByProposalId.set(pid, list);
+    });
   }
 
   const bodySegments = segments.filter((s) => s.kind !== "reference");
@@ -226,19 +244,32 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
             </p>
           ) : (
             <div>
-              {proposals.map((p) => (
-                <div key={p.proposalId} className={styles.proposalRow}>
-                  <span className={styles.proposalId}>#{p.proposalId}</span>
-                  <a
-                    href={`#seg-${segments.find((s) => s.segmentId === p.segmentId)?.order ?? ""}`}
-                    className={styles.proposalSeg}
-                  >
-                    {p.segmentId}
-                  </a>
-                  <Chip status={p.status}>{p.status}</Chip>
-                  <span className={styles.proposalWho}>{p.proposerDisplayName}</span>
-                </div>
-              ))}
+              {proposals.map((p) => {
+                const threadComments = commentsByProposalId.get(p.proposalId);
+                return (
+                  <div key={p.proposalId}>
+                    <div className={styles.proposalRow}>
+                      <span className={styles.proposalId}>#{p.proposalId}</span>
+                      <a
+                        href={`#seg-${segments.find((s) => s.segmentId === p.segmentId)?.order ?? ""}`}
+                        className={styles.proposalSeg}
+                      >
+                        {p.segmentId}
+                      </a>
+                      <Chip status={p.status}>{p.status}</Chip>
+                      <span className={styles.proposalWho}>{p.proposerDisplayName}</span>
+                    </div>
+                    {threadComments ? (
+                      <ProposalCommentThread
+                        slug={slug}
+                        proposalId={p.proposalId}
+                        comments={threadComments}
+                        isAuthed={isAuthed}
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
