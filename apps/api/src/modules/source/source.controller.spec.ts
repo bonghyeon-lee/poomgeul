@@ -1,9 +1,25 @@
+import type { User } from "@poomgeul/db";
+
 import type { ArxivClient, ArxivMetadata } from "./arxiv-client.js";
 import { LicenseLookupService } from "./license-lookup.js";
 import { SourceController } from "./source.controller.js";
 import type { SourceRepository } from "./source.repository.js";
 import type { CreateTranslationResult } from "./source.service.js";
 import { SourceService } from "./source.service.js";
+
+function stubUser(overrides: Partial<User> = {}): User {
+  return {
+    id: "00000000-0000-0000-0000-000000000000",
+    email: "test@example.invalid",
+    displayName: "Test",
+    githubHandle: "test",
+    githubId: null,
+    orcid: null,
+    tier: "new",
+    createdAt: new Date(),
+    ...overrides,
+  };
+}
 
 function stubArxiv(behavior: (bareId: string) => Promise<ArxivMetadata>): ArxivClient {
   return { fetchMetadata: behavior } as unknown as ArxivClient;
@@ -111,17 +127,43 @@ describe("SourceController.createSource", () => {
         draftSucceeded: 42,
         draftFailed: 0,
       }),
-    }).createSource({ input: "2310.12345" });
+    }).createSource({ input: "2310.12345" }, stubUser());
     expect(result).toMatchObject({ outcome: "created", slug: "my-paper" });
   });
 
+  it("forwards the authenticated user id as importerId", async () => {
+    const seen: Array<{ importerId: string }> = [];
+    const service = {
+      createFromArxiv: async (_parsed: unknown, importerId: string) => {
+        seen.push({ importerId });
+        return {
+          outcome: "created",
+          sourceId: "s",
+          translationId: "t",
+          slug: "s",
+          license: "CC-BY",
+          title: "t",
+          version: "v1",
+          segmentCount: 0,
+          segmentationStatus: "ok",
+          draftStatus: "ok",
+          draftSucceeded: 0,
+          draftFailed: 0,
+        } as CreateTranslationResult;
+      },
+    } as unknown as SourceService;
+    const user = stubUser({ id: "11111111-1111-1111-1111-111111111111" });
+    await makeController({ sourceService: service }).createSource({ input: "2310.12345" }, user);
+    expect(seen).toEqual([{ importerId: user.id }]);
+  });
+
   it("returns invalid-input for an empty body.input", async () => {
-    const result = await makeController().createSource({ input: "" });
+    const result = await makeController().createSource({ input: "" }, stubUser());
     expect(result).toMatchObject({ outcome: "invalid-input", code: "empty" });
   });
 
   it("returns invalid-input for gibberish", async () => {
-    const result = await makeController().createSource({ input: "not-an-id" });
+    const result = await makeController().createSource({ input: "not-an-id" }, stubUser());
     expect(result).toMatchObject({ outcome: "invalid-input", code: "unsupported" });
   });
 
@@ -134,7 +176,7 @@ describe("SourceController.createSource", () => {
       },
     } as unknown as SourceService;
     const controller = makeController({ sourceService: service });
-    const result = await controller.createSource({ input: "10.1234/abcd.5678" });
+    const result = await controller.createSource({ input: "10.1234/abcd.5678" }, stubUser());
     expect(result).toMatchObject({ outcome: "unsupported-format" });
     expect(serviceCalls).toBe(0);
   });
@@ -147,7 +189,7 @@ describe("SourceController.createSource", () => {
         title: "Non-CC",
         reason: "arxiv-default",
       }),
-    }).createSource({ input: "2504.20451" });
+    }).createSource({ input: "2504.20451" }, stubUser());
     expect(result).toMatchObject({ outcome: "blocked", license: "arxiv-default" });
   });
 });

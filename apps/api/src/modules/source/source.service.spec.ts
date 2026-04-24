@@ -50,6 +50,10 @@ function arxivParsed(bareId = "2504.20451"): ArxivId {
   return parsed;
 }
 
+// These unit tests early-return before touching the DB, so importerId is never
+// read. Fixed UUID keeps signatures honest without requiring a real user row.
+const STUB_IMPORTER_ID = "00000000-0000-0000-0000-000000000000";
+
 describe("SourceService.createFromArxiv", () => {
   it("forwards blocked outcome without touching the database", async () => {
     const svc = new SourceService(
@@ -63,7 +67,7 @@ describe("SourceService.createFromArxiv", () => {
       stubFetcher(),
       stubDraft(),
     );
-    const result = await svc.createFromArxiv(arxivParsed());
+    const result = await svc.createFromArxiv(arxivParsed(), STUB_IMPORTER_ID);
     expect(result).toMatchObject({ outcome: "blocked", license: "arxiv-default" });
   });
 
@@ -77,7 +81,7 @@ describe("SourceService.createFromArxiv", () => {
       stubFetcher(),
       stubDraft(),
     );
-    const result = await svc.createFromArxiv(arxivParsed("9999.99999"));
+    const result = await svc.createFromArxiv(arxivParsed("9999.99999"), STUB_IMPORTER_ID);
     expect(result).toMatchObject({ outcome: "not-found" });
   });
 
@@ -91,7 +95,7 @@ describe("SourceService.createFromArxiv", () => {
       stubFetcher(),
       stubDraft(),
     );
-    const result = await svc.createFromArxiv(arxivParsed());
+    const result = await svc.createFromArxiv(arxivParsed(), STUB_IMPORTER_ID);
     expect(result).toMatchObject({ outcome: "upstream-error" });
   });
 
@@ -105,7 +109,7 @@ describe("SourceService.createFromArxiv", () => {
       stubFetcher(),
       stubDraft(),
     );
-    const result = await svc.createFromArxiv(arxivParsed());
+    const result = await svc.createFromArxiv(arxivParsed(), STUB_IMPORTER_ID);
     expect(result).toMatchObject({ outcome: "unsupported-format" });
   });
 
@@ -129,9 +133,9 @@ describe("SourceService.createFromArxiv", () => {
     const svc = new SourceService(stubDb(), slowLookup, stubFetcher(), stubDraft());
     const parsed = arxivParsed();
     const [a, b, c] = await Promise.all([
-      svc.createFromArxiv(parsed),
-      svc.createFromArxiv(parsed),
-      svc.createFromArxiv(parsed),
+      svc.createFromArxiv(parsed, STUB_IMPORTER_ID),
+      svc.createFromArxiv(parsed, STUB_IMPORTER_ID),
+      svc.createFromArxiv(parsed, STUB_IMPORTER_ID),
     ]);
     // 같은 Promise가 세 번 반환되었을 것 — lookup은 1회만.
     expect(lookupCalls).toBe(1);
@@ -155,8 +159,8 @@ describe("SourceService.createFromArxiv", () => {
 
     const svc = new SourceService(stubDb(), lookup, stubFetcher(), stubDraft());
     const parsed = arxivParsed();
-    await svc.createFromArxiv(parsed);
-    await svc.createFromArxiv(parsed);
+    await svc.createFromArxiv(parsed, STUB_IMPORTER_ID);
+    await svc.createFromArxiv(parsed, STUB_IMPORTER_ID);
     expect(lookupCalls).toBe(2);
   });
 });

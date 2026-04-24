@@ -10,8 +10,9 @@
  * Segment 분할(M0 #3)은 이 서비스 밖. 생성 직후 segments 테이블은 비어 있고,
  * Reader는 "세그먼트 분할 대기" 상태로 렌더하도록 프론트가 처리한다.
  *
- * 인증(M0 #1)이 붙기 전이라 importedBy/leadId는 dev seed user를 ensure해서 쓴다.
- * 인증 붙은 뒤에는 req.user로 교체해야 한다 — ensureSeedUser 호출 지점이 교체 포인트.
+ * 소유권 필드(importedBy / leadId / lastEditorId)는 컨트롤러가 SessionGuard
+ * 통과 후 req.user.id를 importerId로 넘겨 주입한다. 인증 이전의 dev-seed
+ * 사용자 row는 데이터 호환을 위해 DB에 남겨 두지만 새 row에는 붙지 않는다.
  */
 
 import { Inject, Injectable, Logger } from "@nestjs/common";
@@ -23,7 +24,6 @@ import {
   sources,
   translations,
   translationSegments,
-  users,
 } from "@poomgeul/db";
 
 import { TranslationDraftService } from "../translation/translation-draft.service.js";
@@ -89,8 +89,6 @@ export type RetryFailedResult =
   | { outcome: "nothing-to-retry"; translationId: string; slug: string }
   | { outcome: "not-found"; reason: string };
 
-const DEV_SEED_EMAIL = "dev-seed@poomgeul.invalid";
-
 @Injectable()
 export class SourceService {
   private readonly logger = new Logger(SourceService.name);
@@ -124,14 +122,17 @@ export class SourceService {
     return promise;
   }
 
-  async createFromArxiv(parsed: ArxivId): Promise<CreateTranslationResult> {
+  async createFromArxiv(parsed: ArxivId, importerId: string): Promise<CreateTranslationResult> {
     const key = parsed.version
       ? `create:arxiv:${parsed.bareId}v${parsed.version}`
       : `create:arxiv:${parsed.bareId}`;
-    return this.deduped(key, () => this.createFromArxivInner(parsed));
+    return this.deduped(key, () => this.createFromArxivInner(parsed, importerId));
   }
 
-  private async createFromArxivInner(parsed: ArxivId): Promise<CreateTranslationResult> {
+  private async createFromArxivInner(
+    parsed: ArxivId,
+    importerId: string,
+  ): Promise<CreateTranslationResult> {
     const lookupResult = await this.lookup.lookup(parsed);
 
     if (lookupResult.outcome !== "allowed") {
@@ -164,8 +165,6 @@ export class SourceService {
         `alreadyRegistered slug=${lookupResult.registeredSlug} disappeared on re-read; falling through to create`,
       );
     }
-
-    const importerId = await this.ensureSeedUser();
 
     const attributionSource = canonicalArxivUrl(parsed);
     const sourceVersion = parsed.version ? `v${parsed.version}` : lookupResult.version;
@@ -558,23 +557,6 @@ export class SourceService {
       draftSucceeded: draftResult.succeeded,
       draftFailed: draftResult.failed,
     };
-  }
-
-  private async ensureSeedUser(): Promise<string> {
-    const existing = await this.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, DEV_SEED_EMAIL))
-      .limit(1);
-    if (existing[0]) return existing[0].id;
-
-    const inserted = await this.db
-      .insert(users)
-      .values({ email: DEV_SEED_EMAIL, displayName: "dev seed" })
-      .returning();
-    const row = inserted[0];
-    if (!row) throw new Error("failed to create dev seed user");
-    return row.id;
   }
 }
 
