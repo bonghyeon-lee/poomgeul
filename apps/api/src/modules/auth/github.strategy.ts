@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { Strategy, type StrategyOptions } from "passport-github2";
 
-import { AuthService, type GitHubProfileInput } from "./auth.service.js";
+import { type GitHubProfileInput } from "./auth.service.js";
 
 type PassportProfile = {
   id: string;
@@ -31,7 +31,7 @@ export class GitHubStrategy extends PassportStrategy(
   ) => unknown,
   "github",
 ) {
-  constructor(private readonly auth: AuthService) {
+  constructor() {
     const clientID = process.env.GITHUB_CLIENT_ID;
     const clientSecret = process.env.GITHUB_CLIENT_SECRET;
     const callbackURL = process.env.GITHUB_OAUTH_CALLBACK_URL ?? defaultCallbackUrl();
