@@ -118,7 +118,7 @@ export default function Home() {
             <a href="https://github.com/bonghyeon-lee/poomgeul" rel="noreferrer">
               GitHub
             </a>
-            <a href="http://localhost:3000/api/docs" rel="noreferrer">
+            <a href="/api/docs" rel="noreferrer">
               API 문서
             </a>
           </div>
