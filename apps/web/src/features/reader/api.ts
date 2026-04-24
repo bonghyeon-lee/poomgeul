@@ -165,6 +165,52 @@ export async function loadProposalsFromApi(slug: string): Promise<ProposalSummar
   }));
 }
 
+export type BlocklistEntryItem = {
+  userId: string;
+  userDisplayName: string | null;
+  userGithubHandle: string | null;
+  reason: string | null;
+  createdAt: string;
+  revokedAt: string | null;
+};
+
+/**
+ * ADR-0007 리드 전용 blocklist 목록. 리드가 아닌 경우 API가 403 — 이때 null을
+ * 돌려 Reader page가 섹션 자체를 렌더하지 않도록 한다(빈 배열 대신 null을 쓰는
+ * 이유: "권한 없음"과 "빈 리스트"를 구분해야 UI에서 섹션 노출 여부 판단 가능).
+ */
+export async function loadBlocklistFromApi(slug: string): Promise<BlocklistEntryItem[] | null> {
+  const { headers } = await import("next/headers");
+  const cookie = (await headers()).get("cookie") ?? "";
+  if (!cookie) return null;
+  const url = `${apiBase()}/api/translations/${encodeURIComponent(slug)}/blocklist`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "GET",
+      headers: { accept: "application/json", cookie },
+      cache: "no-store",
+    });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  try {
+    type ApiItem = BlocklistEntryItem & { translationId: string; blockedBy: string };
+    const items = (await res.json()) as ApiItem[];
+    return items.map((it) => ({
+      userId: it.userId,
+      userDisplayName: it.userDisplayName,
+      userGithubHandle: it.userGithubHandle,
+      reason: it.reason,
+      createdAt: it.createdAt,
+      revokedAt: it.revokedAt,
+    }));
+  } catch {
+    return null;
+  }
+}
+
 /**
  * 단일 proposal의 댓글 목록. Reader에서 open proposal 행 아래 인라인으로
  * 바로 표시하는 용도. 실패 시 빈 배열 폴백(댓글 섹션만 생략되도록).

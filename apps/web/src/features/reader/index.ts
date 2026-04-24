@@ -1,6 +1,12 @@
 export { AttributionBlock } from "./components/AttributionBlock";
 export type { AttributionBlockProps } from "./components/AttributionBlock";
 
+export { BlocklistManager } from "./components/BlocklistManager";
+export type { BlocklistManagerProps } from "./components/BlocklistManager";
+
+export { BlockProposerButton } from "./components/BlockProposerButton";
+export type { BlockProposerButtonProps } from "./components/BlockProposerButton";
+
 export { DecideButtons } from "./components/DecideButtons";
 export type { DecideButtonsProps } from "./components/DecideButtons";
 
@@ -21,6 +27,7 @@ export type { SegmentPairProps } from "./components/SegmentPair";
 
 export { findReaderBundleBySlug, listReaderSlugs, sampleReaderBundle } from "./mocks";
 export {
+  loadBlocklistFromApi,
   loadIsAuthed,
   loadMe,
   loadProposalCommentsFromApi,
@@ -28,7 +35,7 @@ export {
   loadReaderBundleFromApi,
   loadTranslationList,
 } from "./api";
-export type { ReaderMe } from "./api";
+export type { BlocklistEntryItem, ReaderMe } from "./api";
 export type { TranslationListItem } from "./api";
 export type {
   Contributor,
