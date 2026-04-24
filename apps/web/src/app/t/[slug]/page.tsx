@@ -6,8 +6,10 @@ import {
   AttributionBlock,
   findReaderBundleBySlug,
   listReaderSlugs,
+  loadIsAuthed,
   loadProposalsFromApi,
   loadReaderBundleFromApi,
+  ProposeButton,
   ReprocessButton,
   RetryFailedButton,
   SegmentPair,
@@ -58,9 +60,10 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
   // Reader bundle과 Proposal 목록을 병렬 fetch (ADR-0006: 번들에 proposals를 끼우지 않고
   // 별도 엔드포인트에서 lazy fetch). API가 404 등으로 실패하면 loadProposalsFromApi는
   // 빈 배열을 돌려줘, mock bundle이 자체 보유한 샘플 proposals로 자연 폴백된다.
-  const [bundle, apiProposals] = await Promise.all([
+  const [bundle, apiProposals, isAuthed] = await Promise.all([
     resolveBundle(slug),
     loadProposalsFromApi(slug),
+    loadIsAuthed(),
   ]);
   if (!bundle) {
     return <PendingSegmentsView slug={slug} />;
@@ -176,12 +179,20 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
               if (!ts) return null;
               const proposal = openProposalBySegment.get(seg.segmentId);
               return (
-                <SegmentPair
-                  key={seg.segmentId}
-                  segment={seg}
-                  translation={ts}
-                  openProposalStatus={proposal ? proposal.status : null}
-                />
+                <div key={seg.segmentId}>
+                  <SegmentPair
+                    segment={seg}
+                    translation={ts}
+                    openProposalStatus={proposal ? proposal.status : null}
+                  />
+                  <ProposeButton
+                    slug={slug}
+                    segmentId={seg.segmentId}
+                    baseSegmentVersion={ts.version}
+                    initialText={ts.text}
+                    isAuthed={isAuthed}
+                  />
+                </div>
               );
             })}
           </div>

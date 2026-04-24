@@ -1,19 +1,39 @@
-import { Controller, Get, Inject, Param, Query } from "@nestjs/common";
 import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import {
+  ApiBadRequestResponse,
+  ApiBody,
+  ApiConflictResponse,
+  ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiQuery,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
+import type { User } from "@poomgeul/db";
 
+import { CurrentUser } from "../auth/current-user.decorator.js";
+import { SessionGuard } from "../auth/session.guard.js";
+import { CreateProposalBody } from "./dto.js";
 import {
   type ProposalComment,
   type ProposalDetail,
   type ProposalListItem,
 } from "./proposal.repository.js";
-import { ProposalService } from "./proposal.service.js";
+import { type CreateProposalResult, ProposalService } from "./proposal.service.js";
 
 type StatusParam = "all" | "open" | "merged" | "rejected" | "withdrawn" | "stale";
 
@@ -78,6 +98,39 @@ export class ProposalController {
     @Param("proposalId") proposalId: string,
   ): Promise<ProposalDetail> {
     return this.service.findDetail(slug, proposalId);
+  }
+
+  @Post()
+  @UseGuards(SessionGuard)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: "Create a new proposal on a segment (M0 §6 / ADR-0006 C2)",
+    description:
+      "Requires an authenticated session. baseSegmentVersion is the version of " +
+      "translation_segments the proposer saw when drafting — if the segment has " +
+      "moved since, the server returns 409 rebase_required so the UI can surface " +
+      "the current text for re-drafting (ADR-0003). Same proposer + segment + open " +
+      "is limited to one (409 duplicate_open_proposal).",
+  })
+  @ApiParam({ name: "slug", type: String })
+  @ApiBody({ type: CreateProposalBody })
+  @ApiCreatedResponse({
+    description: "Proposal created. Body: { proposalId, status: 'open', createdAt }.",
+  })
+  @ApiBadRequestResponse({ description: "Validation failed (code: validation_failed)." })
+  @ApiUnauthorizedResponse({ description: "No session cookie or session invalid (ADR-0005)." })
+  @ApiNotFoundResponse({ description: "translation or segment not found." })
+  @ApiConflictResponse({
+    description:
+      "Either duplicate_open_proposal (existingProposalId) or rebase_required " +
+      "(currentVersion, currentText).",
+  })
+  async create(
+    @Param("slug") slug: string,
+    @Body() body: CreateProposalBody,
+    @CurrentUser() user: User,
+  ): Promise<CreateProposalResult> {
+    return this.service.create(slug, user.id, body);
   }
 
   @Get(":proposalId/comments")

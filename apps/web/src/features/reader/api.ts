@@ -65,6 +65,28 @@ function apiBase(): string {
 }
 
 /**
+ * 서버 컴포넌트에서 로그인 여부를 확인. AppHeader도 같은 조회를 하지만 page는
+ * 그 결과를 받을 수 없어 이 헬퍼로 한 번 더 호출한다. 실패 시 미인증 취급.
+ * Next dev rewrite 경유라 브라우저 쿠키를 다시 복제해 주어야 한다.
+ */
+export async function loadIsAuthed(): Promise<boolean> {
+  // next/headers는 서버 모듈이라 이 파일이 클라이언트 번들에 포함되면 오류가 난다.
+  // Reader page는 서버 컴포넌트에서만 이 함수를 호출한다("use client" 없음).
+  const { headers } = await import("next/headers");
+  const cookie = (await headers()).get("cookie") ?? "";
+  if (!cookie) return false;
+  try {
+    const res = await fetch(`${apiBase()}/api/auth/me`, {
+      headers: { cookie },
+      cache: "no-store",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Reader 페이지에서 제안 섹션·세그먼트 카드 chip을 채우기 위한 경량 목록.
  * ADR-0006에 따라 Reader 번들에서 분리해 별도 엔드포인트에서 가져온다.
  * API 실패 시 빈 배열로 폴백해 Reader가 계속 렌더되도록.

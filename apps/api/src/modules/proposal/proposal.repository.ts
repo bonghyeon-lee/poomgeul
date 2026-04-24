@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import {
   and,
+  contributions,
   type Db,
   desc,
   eq,
@@ -13,9 +14,9 @@ import {
   users,
 } from "@poomgeul/db";
 
-type ProposalStatus = Proposal["status"];
-
 import { DB_TOKEN } from "../../db/database.module.js";
+
+type ProposalStatus = Proposal["status"];
 
 export type ProposalListItem = {
   proposalId: string;
@@ -61,6 +62,29 @@ export interface ListProposalsOptions {
   limit?: number;
 }
 
+export interface CreateProposalInput {
+  translationId: string;
+  segmentId: string;
+  baseSegmentVersion: number;
+  proposedText: string;
+  reason: string | null;
+  proposerId: string;
+}
+
+export interface TranslationSegmentSnapshot {
+  translationId: string;
+  segmentId: string;
+  sourceId: string;
+  version: number;
+  text: string;
+}
+
+export interface TranslationSnapshot {
+  translationId: string;
+  sourceId: string;
+  slug: string;
+}
+
 @Injectable()
 export class ProposalRepository {
   constructor(@Inject(DB_TOKEN) private readonly db: Db) {}
@@ -77,6 +101,112 @@ export class ProposalRepository {
       .where(eq(translations.slug, slug))
       .limit(1);
     return rows[0]?.translationId ?? null;
+  }
+
+  async findTranslationSnapshotBySlug(slug: string): Promise<TranslationSnapshot | null> {
+    const rows = await this.db
+      .select({
+        translationId: translations.translationId,
+        sourceId: translations.sourceId,
+        slug: translations.slug,
+      })
+      .from(translations)
+      .where(eq(translations.slug, slug))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  /**
+   * 해당 segment가 이 translation의 source에 속하고 translation_segments 행이
+   * 존재하는지 확인. 존재하지 않으면 null — 잘못된 segmentId에 대한 404 또는
+   * 400 분기의 단서로 쓰인다.
+   */
+  async findSegmentSnapshot(
+    translationId: string,
+    segmentId: string,
+  ): Promise<TranslationSegmentSnapshot | null> {
+    const rows = await this.db
+      .select({
+        translationId: translationSegments.translationId,
+        segmentId: translationSegments.segmentId,
+        sourceId: segments.sourceId,
+        version: translationSegments.version,
+        text: translationSegments.text,
+      })
+      .from(translationSegments)
+      .innerJoin(segments, eq(segments.segmentId, translationSegments.segmentId))
+      .where(
+        and(
+          eq(translationSegments.translationId, translationId),
+          eq(translationSegments.segmentId, segmentId),
+        ),
+      )
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  /**
+   * 같은 proposer · segment · status=open 조합이 이미 있는지. M0 §6 AC 2번:
+   * "같은 사용자·같은 세그먼트에 동시 open 제안 1개 제한".
+   */
+  async findOpenProposalId(
+    translationId: string,
+    segmentId: string,
+    proposerId: string,
+  ): Promise<string | null> {
+    const rows = await this.db
+      .select({ proposalId: proposals.proposalId })
+      .from(proposals)
+      .where(
+        and(
+          eq(proposals.translationId, translationId),
+          eq(proposals.segmentId, segmentId),
+          eq(proposals.proposerId, proposerId),
+          eq(proposals.status, "open"),
+        ),
+      )
+      .limit(1);
+    return rows[0]?.proposalId ?? null;
+  }
+
+  /**
+   * proposal insert + contribution(proposal_submit)을 한 트랜잭션으로.
+   * workflow-proposal.md "이벤트 발행" 섹션의 매핑을 그대로 따른다.
+   */
+  async createProposalWithContribution(input: CreateProposalInput): Promise<{
+    proposalId: string;
+    createdAt: string;
+  }> {
+    return this.db.transaction(async (tx) => {
+      const [inserted] = await tx
+        .insert(proposals)
+        .values({
+          translationId: input.translationId,
+          segmentId: input.segmentId,
+          baseSegmentVersion: input.baseSegmentVersion,
+          proposedText: input.proposedText,
+          reason: input.reason,
+          proposerId: input.proposerId,
+          // status 기본값은 "open" — 스키마에서 이미 default.
+        })
+        .returning({ proposalId: proposals.proposalId, createdAt: proposals.createdAt });
+      if (!inserted) throw new Error("proposal insert returned no row");
+
+      await tx.insert(contributions).values({
+        userId: input.proposerId,
+        eventType: "proposal_submit",
+        entityRef: {
+          translationId: input.translationId,
+          segmentId: input.segmentId,
+          proposalId: inserted.proposalId,
+        },
+      });
+
+      return {
+        proposalId: inserted.proposalId,
+        createdAt: inserted.createdAt.toISOString(),
+      };
+    });
   }
 
   async listByTranslation(
