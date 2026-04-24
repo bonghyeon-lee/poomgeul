@@ -1,5 +1,14 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, Min } from "class-validator";
+import {
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  Min,
+} from "class-validator";
 
 /**
  * ADR-0006 C2 — 제안 생성 요청 body.
@@ -32,4 +41,20 @@ export class CreateProposalBody {
   @IsString()
   @MaxLength(500)
   reason?: string;
+}
+
+/**
+ * ADR-0006 C3 — 리드의 decide(approve/reject) 요청 body. approve-with-edits는
+ * M1+ 확장이라 action enum은 두 값으로 시작한다.
+ */
+export class DecideProposalBody {
+  @ApiProperty({ enum: ["approve", "reject"] })
+  @IsIn(["approve", "reject"])
+  action!: "approve" | "reject";
+
+  @ApiProperty({ description: "내부 메모(선택). 현재 미사용.", maxLength: 500, required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
 }

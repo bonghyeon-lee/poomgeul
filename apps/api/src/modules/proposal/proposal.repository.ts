@@ -9,6 +9,7 @@ import {
   proposalComments,
   proposals,
   segments,
+  translationRevisions,
   translations,
   translationSegments,
   users,
@@ -83,7 +84,47 @@ export interface TranslationSnapshot {
   translationId: string;
   sourceId: string;
   slug: string;
+  leadId: string;
 }
+
+export interface ProposalForDecision {
+  proposalId: string;
+  translationId: string;
+  segmentId: string;
+  proposerId: string;
+  status: ProposalStatus;
+  baseSegmentVersion: number;
+  proposedText: string;
+}
+
+export interface ApproveProposalResult {
+  proposalId: string;
+  status: "merged";
+  segment: {
+    segmentId: string;
+    version: number;
+    text: string;
+  };
+  revisionId: string;
+}
+
+export interface RejectProposalResult {
+  proposalId: string;
+  status: "rejected";
+  resolvedAt: string;
+}
+
+export interface WithdrawProposalResult {
+  proposalId: string;
+  status: "withdrawn";
+  resolvedAt: string;
+}
+
+export type RebaseConflict = {
+  kind: "rebase_required";
+  currentVersion: number;
+  currentText: string;
+};
 
 @Injectable()
 export class ProposalRepository {
@@ -109,11 +150,206 @@ export class ProposalRepository {
         translationId: translations.translationId,
         sourceId: translations.sourceId,
         slug: translations.slug,
+        leadId: translations.leadId,
       })
       .from(translations)
       .where(eq(translations.slug, slug))
       .limit(1);
     return rows[0] ?? null;
+  }
+
+  async findProposalForDecision(
+    translationId: string,
+    proposalId: string,
+  ): Promise<ProposalForDecision | null> {
+    const rows = await this.db
+      .select({
+        proposalId: proposals.proposalId,
+        translationId: proposals.translationId,
+        segmentId: proposals.segmentId,
+        proposerId: proposals.proposerId,
+        status: proposals.status,
+        baseSegmentVersion: proposals.baseSegmentVersion,
+        proposedText: proposals.proposedText,
+      })
+      .from(proposals)
+      .where(and(eq(proposals.proposalId, proposalId), eq(proposals.translationId, translationId)))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  /**
+   * ADR-0003 머지 트랜잭션. 반환 유니온:
+   * - success: translation_segments 업데이트 + translation_revisions 삽입 +
+   *   proposals.status='merged' + contribution(proposal_merge).
+   * - rebase_required: proposal.baseSegmentVersion과 현재 ts.version이
+   *   불일치. 아무 것도 쓰지 않고 충돌 정보 반환.
+   *
+   * workflow-proposal.md의 "머지 절차" 그대로. last_editor_id는 proposer
+   * 저장(author). committer(lead)는 Proposal.resolvedBy·Revision에서 추적.
+   */
+  async approveProposal(params: {
+    proposal: ProposalForDecision;
+    leadId: string;
+  }): Promise<ApproveProposalResult | RebaseConflict> {
+    const { proposal, leadId } = params;
+    return this.db.transaction(async (tx) => {
+      const currentRows = await tx
+        .select({ text: translationSegments.text, version: translationSegments.version })
+        .from(translationSegments)
+        .where(
+          and(
+            eq(translationSegments.translationId, proposal.translationId),
+            eq(translationSegments.segmentId, proposal.segmentId),
+          ),
+        )
+        .limit(1);
+      const current = currentRows[0];
+      if (!current) {
+        // 스키마 cascade 상 거의 불가능 — 방어적으로 rebase로 취급.
+        return {
+          kind: "rebase_required",
+          currentVersion: -1,
+          currentText: "",
+        };
+      }
+      if (current.version !== proposal.baseSegmentVersion) {
+        return {
+          kind: "rebase_required",
+          currentVersion: current.version,
+          currentText: current.text,
+        };
+      }
+
+      const now = new Date();
+      const newVersion = current.version + 1;
+
+      const updated = await tx
+        .update(translationSegments)
+        .set({
+          text: proposal.proposedText,
+          version: newVersion,
+          lastEditorId: proposal.proposerId,
+          lastEditedAt: now,
+          status: "approved",
+        })
+        .where(
+          and(
+            eq(translationSegments.translationId, proposal.translationId),
+            eq(translationSegments.segmentId, proposal.segmentId),
+            eq(translationSegments.version, current.version),
+          ),
+        )
+        .returning({
+          segmentId: translationSegments.segmentId,
+          version: translationSegments.version,
+          text: translationSegments.text,
+        });
+      if (updated.length !== 1 || !updated[0]) {
+        // 누군가 같은 트랜잭션 밖에서 방금 version을 올린 경쟁 조건.
+        // transaction isolation은 postgres 기본(read committed). 재조회해 충돌 정보 반환.
+        const raceRows = await tx
+          .select({ text: translationSegments.text, version: translationSegments.version })
+          .from(translationSegments)
+          .where(
+            and(
+              eq(translationSegments.translationId, proposal.translationId),
+              eq(translationSegments.segmentId, proposal.segmentId),
+            ),
+          )
+          .limit(1);
+        const race = raceRows[0];
+        return {
+          kind: "rebase_required",
+          currentVersion: race?.version ?? -1,
+          currentText: race?.text ?? "",
+        };
+      }
+
+      const [revision] = await tx
+        .insert(translationRevisions)
+        .values({
+          translationId: proposal.translationId,
+          authorId: proposal.proposerId,
+          mergedProposalId: proposal.proposalId,
+          commitMessage: null,
+          // M0 스냅샷: 세그먼트 전후. 전체 번역본 blame은 M2에서 schemaVersion으로 확장.
+          snapshot: {
+            schemaVersion: 1,
+            kind: "segment-merge",
+            segmentId: proposal.segmentId,
+            before: { text: current.text, version: current.version },
+            after: { text: proposal.proposedText, version: newVersion },
+          },
+        })
+        .returning({ revisionId: translationRevisions.revisionId });
+      if (!revision) throw new Error("revision insert returned no row");
+
+      await tx
+        .update(proposals)
+        .set({ status: "merged", resolvedBy: leadId, resolvedAt: now })
+        .where(eq(proposals.proposalId, proposal.proposalId));
+
+      await tx.insert(contributions).values({
+        userId: proposal.proposerId,
+        eventType: "proposal_merge",
+        entityRef: {
+          translationId: proposal.translationId,
+          segmentId: proposal.segmentId,
+          proposalId: proposal.proposalId,
+          revisionId: revision.revisionId,
+        },
+      });
+
+      return {
+        proposalId: proposal.proposalId,
+        status: "merged" as const,
+        segment: {
+          segmentId: updated[0].segmentId,
+          version: updated[0].version,
+          text: updated[0].text,
+        },
+        revisionId: revision.revisionId,
+      };
+    });
+  }
+
+  async rejectProposal(params: {
+    proposalId: string;
+    leadId: string;
+  }): Promise<RejectProposalResult> {
+    const now = new Date();
+    const [updated] = await this.db
+      .update(proposals)
+      .set({ status: "rejected", resolvedBy: params.leadId, resolvedAt: now })
+      .where(eq(proposals.proposalId, params.proposalId))
+      .returning({ proposalId: proposals.proposalId, resolvedAt: proposals.resolvedAt });
+    if (!updated || !updated.resolvedAt) {
+      throw new Error("reject update returned no row");
+    }
+    return {
+      proposalId: updated.proposalId,
+      status: "rejected",
+      resolvedAt: updated.resolvedAt.toISOString(),
+    };
+  }
+
+  async withdrawProposal(proposalId: string): Promise<WithdrawProposalResult> {
+    const now = new Date();
+    const [updated] = await this.db
+      .update(proposals)
+      // proposer 본인 철회이므로 resolvedBy는 비워 둔다(committer=제안자 본인의 의미는 아니다).
+      .set({ status: "withdrawn", resolvedBy: null, resolvedAt: now })
+      .where(eq(proposals.proposalId, proposalId))
+      .returning({ proposalId: proposals.proposalId, resolvedAt: proposals.resolvedAt });
+    if (!updated || !updated.resolvedAt) {
+      throw new Error("withdraw update returned no row");
+    }
+    return {
+      proposalId: updated.proposalId,
+      status: "withdrawn",
+      resolvedAt: updated.resolvedAt.toISOString(),
+    };
   }
 
   /**

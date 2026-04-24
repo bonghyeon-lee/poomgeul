@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -8,11 +9,14 @@ import {
 
 import type { CreateProposalBody } from "./dto.js";
 import {
+  type ApproveProposalResult,
   type ListProposalsOptions,
   type ProposalComment,
   type ProposalDetail,
   type ProposalListItem,
   ProposalRepository,
+  type RejectProposalResult,
+  type WithdrawProposalResult,
 } from "./proposal.repository.js";
 
 export interface CreateProposalResult {
@@ -20,6 +24,9 @@ export interface CreateProposalResult {
   status: "open";
   createdAt: string;
 }
+
+export type DecideAction = "approve" | "reject";
+export type DecideResult = ApproveProposalResult | RejectProposalResult;
 
 /**
  * ADR-0006 Proposal 서비스.
@@ -137,6 +144,92 @@ export class ProposalService {
       status: "open",
       createdAt: created.createdAt,
     };
+  }
+
+  async decide(
+    slug: string,
+    proposalId: string,
+    requesterId: string,
+    action: DecideAction,
+  ): Promise<DecideResult> {
+    const translation = await this.repo.findTranslationSnapshotBySlug(slug);
+    if (!translation) {
+      throw new NotFoundException({
+        code: "not_found",
+        message: `translation ${slug} not found`,
+      });
+    }
+    if (translation.leadId !== requesterId) {
+      throw new ForbiddenException({
+        code: "forbidden",
+        message: "only the translation lead can approve or reject proposals",
+      });
+    }
+
+    const proposal = await this.repo.findProposalForDecision(translation.translationId, proposalId);
+    if (!proposal) {
+      throw new NotFoundException({
+        code: "not_found",
+        message: `proposal ${proposalId} not found in translation ${slug}`,
+      });
+    }
+    if (proposal.status !== "open") {
+      throw new ConflictException({
+        code: "not_open",
+        message: `proposal is already ${proposal.status}`,
+        status: proposal.status,
+      });
+    }
+
+    if (action === "reject") {
+      return this.repo.rejectProposal({
+        proposalId: proposal.proposalId,
+        leadId: requesterId,
+      });
+    }
+
+    const approveOutcome = await this.repo.approveProposal({
+      proposal,
+      leadId: requesterId,
+    });
+    if ("kind" in approveOutcome && approveOutcome.kind === "rebase_required") {
+      throw new ConflictException({
+        code: "rebase_required",
+        currentVersion: approveOutcome.currentVersion,
+        currentText: approveOutcome.currentText,
+      });
+    }
+    // 타입 좁히기: 위 분기가 true가 아니면 ApproveProposalResult다.
+    return approveOutcome as ApproveProposalResult;
+  }
+
+  async withdraw(
+    slug: string,
+    proposalId: string,
+    requesterId: string,
+  ): Promise<WithdrawProposalResult> {
+    const translationId = await this.resolveTranslationId(slug);
+    const proposal = await this.repo.findProposalForDecision(translationId, proposalId);
+    if (!proposal) {
+      throw new NotFoundException({
+        code: "not_found",
+        message: `proposal ${proposalId} not found in translation ${slug}`,
+      });
+    }
+    if (proposal.proposerId !== requesterId) {
+      throw new ForbiddenException({
+        code: "forbidden",
+        message: "only the proposer can withdraw this proposal",
+      });
+    }
+    if (proposal.status !== "open") {
+      throw new ConflictException({
+        code: "not_open",
+        message: `proposal is already ${proposal.status}`,
+        status: proposal.status,
+      });
+    }
+    return this.repo.withdrawProposal(proposalId);
   }
 
   private async resolveTranslationId(slug: string): Promise<string> {
