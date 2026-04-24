@@ -40,3 +40,5 @@
 | [0002](0002-llm-provider-abstraction.md) | LLM 프로바이더 추상화 — OpenRouter + 4-tier Cascade | Accepted |
 | [0003](0003-optimistic-locking.md) | 동시 편집 충돌 방어 — `segment.version` Optimistic Locking | Accepted |
 | [0004](0004-source-parser.md) | 원문 파싱 소스: ar5iv HTML 1차 경로 | Accepted |
+| [0005](0005-github-oauth-session.md) | GitHub OAuth + DB 세션 | Accepted |
+| [0006](0006-proposal-crud-api.md) | Proposal CRUD API — 경로·페이로드·PR 분해 전략 | Accepted |
