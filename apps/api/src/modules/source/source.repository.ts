@@ -13,7 +13,7 @@ import {
   users,
 } from "@poomgeul/db";
 
-export const DB_TOKEN = Symbol("DB_TOKEN");
+import { DB_TOKEN } from "../../db/database.module.js";
 
 export type RegisteredTranslation = {
   sourceId: string;

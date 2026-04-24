@@ -1,5 +1,4 @@
-import { Module, type OnModuleDestroy } from "@nestjs/common";
-import { createDb, type Db } from "@poomgeul/db";
+import { Module } from "@nestjs/common";
 
 import { AuthModule } from "../auth/auth.module.js";
 import { GeminiTranslationProvider } from "../translation/gemini-provider.js";
@@ -11,45 +10,16 @@ import { Ar5ivFetcher } from "./ar5iv-fetcher.js";
 import { ArxivClient } from "./arxiv-client.js";
 import { ARXIV_CLIENT, LicenseLookupService } from "./license-lookup.js";
 import { SourceController } from "./source.controller.js";
-import { DB_TOKEN, SourceRepository } from "./source.repository.js";
+import { SourceRepository } from "./source.repository.js";
 import { AR5IV_FETCHER, SourceService } from "./source.service.js";
 import { TranslationsController } from "./translations.controller.js";
 
-/**
- * Db 핸들을 소유하는 작은 holder. 모듈이 파괴될 때 postgres 풀을 닫는다.
- * 향후 translation/proposal 모듈이 생기면 공유 DatabaseModule로 승격한다.
- */
-class DbHolder implements OnModuleDestroy {
-  readonly db: Db;
-  constructor() {
-    const url = process.env.DATABASE_URL;
-    if (!url) {
-      throw new Error(
-        [
-          "DATABASE_URL is required to start SourceModule.",
-          "Set it in the root .env (postgres://poomgeul:poomgeul@localhost:5432/poomgeul)",
-          "or export it in the shell. AppModule reads both apps/api/.env and the monorepo root .env.",
-        ].join(" "),
-      );
-    }
-    this.db = createDb(url);
-  }
-  async onModuleDestroy(): Promise<void> {
-    await this.db.close();
-  }
-}
-
 @Module({
   // AuthModule에서 SessionGuard가 export되며, 여기 쓰기 엔드포인트에서 @UseGuards로 쓴다.
+  // DB_TOKEN은 @Global() DatabaseModule이 AppModule에서 한 번 등록하므로 여기 재등록 불필요.
   imports: [AuthModule],
   controllers: [SourceController, TranslationsController],
   providers: [
-    DbHolder,
-    {
-      provide: DB_TOKEN,
-      useFactory: (holder: DbHolder) => holder.db,
-      inject: [DbHolder],
-    },
     SourceRepository,
     {
       provide: ARXIV_CLIENT,
