@@ -47,9 +47,16 @@ describe("OpenRouterTranslationProvider", () => {
     expect(init).toBeDefined();
     const headers = init?.headers as Record<string, string>;
     expect(headers.authorization).toBe("Bearer sk-test");
-    const body = JSON.parse(String(init?.body)) as { model: string; messages: unknown[] };
+    const body = JSON.parse(String(init?.body)) as {
+      model: string;
+      messages: Array<{ role: string; content: string }>;
+    };
     expect(body.model).toBe("test-model:free");
-    expect(Array.isArray(body.messages)).toBe(true);
+    // Google AI Studio 계열(Gemma-3 등)이 system role을 거부하는 케이스를
+    // 피하기 위해 system prompt를 user 메시지에 병합해 단일 user로 전송.
+    expect(body.messages).toHaveLength(1);
+    expect(body.messages[0]?.role).toBe("user");
+    expect(body.messages[0]?.content).toContain("hello");
   });
 
   it("translate: HTTP 429는 rate-limited TranslationProviderError로 매핑", async () => {
