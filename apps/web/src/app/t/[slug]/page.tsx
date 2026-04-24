@@ -6,6 +6,7 @@ import {
   AttributionBlock,
   findReaderBundleBySlug,
   listReaderSlugs,
+  loadProposalsFromApi,
   loadReaderBundleFromApi,
   ReprocessButton,
   RetryFailedButton,
@@ -54,7 +55,13 @@ export async function generateMetadata({
 
 export default async function ReaderPage({ params }: { params: Promise<RouteParams> }) {
   const { slug } = await params;
-  const bundle = await resolveBundle(slug);
+  // Reader bundle과 Proposal 목록을 병렬 fetch (ADR-0006: 번들에 proposals를 끼우지 않고
+  // 별도 엔드포인트에서 lazy fetch). API가 404 등으로 실패하면 loadProposalsFromApi는
+  // 빈 배열을 돌려줘, mock bundle이 자체 보유한 샘플 proposals로 자연 폴백된다.
+  const [bundle, apiProposals] = await Promise.all([
+    resolveBundle(slug),
+    loadProposalsFromApi(slug),
+  ]);
   if (!bundle) {
     return <PendingSegmentsView slug={slug} />;
   }
@@ -63,7 +70,8 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
     return <PendingSegmentsView slug={slug} />;
   }
 
-  const { source, segments, translation, translationSegments, contributors, proposals } = bundle;
+  const { source, segments, translation, translationSegments, contributors } = bundle;
+  const proposals = apiProposals.length > 0 ? apiProposals : bundle.proposals;
 
   const tsByKey = new Map<string, (typeof translationSegments)[number]>();
   for (const ts of translationSegments) {
