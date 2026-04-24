@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { type Db, and, eq, gt, isNull, type Session, sessions, sql, users } from "@poomgeul/db";
 
-import { DB_TOKEN } from "../source/source.repository.js";
+import { DB_TOKEN } from "../../db/database.module.js";
 import {
   type ActiveSession,
   type CreateSessionInput,

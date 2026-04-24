@@ -19,7 +19,7 @@ import { AuthService } from "../../src/modules/auth/auth.service.js";
 import { PgSessionStore } from "../../src/modules/auth/pg-session-store.js";
 import { SessionGuard } from "../../src/modules/auth/session.guard.js";
 import { SESSION_STORE } from "../../src/modules/auth/session-store.js";
-import { DB_TOKEN } from "../../src/modules/source/source.repository.js";
+import { DB_TOKEN } from "../../src/db/database.module.js";
 import { TEST_DATABASE_URL } from "../db/test-db.js";
 
 @Module({

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { type Db, eq, type User, users } from "@poomgeul/db";
 
-import { DB_TOKEN } from "../source/source.repository.js";
+import { DB_TOKEN } from "../../db/database.module.js";
 
 export interface GitHubProfileInput {
   githubId: string;

@@ -32,7 +32,7 @@ import type { ArxivId } from "./input.js";
 import type { AllowedLicense, LicenseLookupResult } from "./license-lookup.js";
 import { LicenseLookupService } from "./license-lookup.js";
 import { parseAr5ivHtml, type ParsedSegment } from "./segment-parser.js";
-import { DB_TOKEN } from "./source.repository.js";
+import { DB_TOKEN } from "../../db/database.module.js";
 
 export const AR5IV_FETCHER = Symbol("AR5IV_FETCHER");
 

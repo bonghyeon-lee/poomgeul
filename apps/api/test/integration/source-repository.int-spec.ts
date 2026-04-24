@@ -10,7 +10,8 @@ import { randomUUID } from "node:crypto";
 
 import { sources, translations, users } from "@poomgeul/db";
 
-import { SourceRepository, DB_TOKEN } from "../../src/modules/source/source.repository.js";
+import { DB_TOKEN } from "../../src/db/database.module.js";
+import { SourceRepository } from "../../src/modules/source/source.repository.js";
 import { withRollback } from "../db/test-db.js";
 
 describe("SourceRepository.findRegisteredByArxivBareId", () => {

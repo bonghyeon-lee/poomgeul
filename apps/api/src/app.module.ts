@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 
+import { DatabaseModule } from "./db/database.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
 import { HealthController } from "./modules/health/health.controller.js";
 import { SourceModule } from "./modules/source/source.module.js";
@@ -21,6 +22,7 @@ const LOCAL_ENV = resolve(process.cwd(), ".env");
       cache: true,
       envFilePath: [LOCAL_ENV, ROOT_ENV],
     }),
+    DatabaseModule,
     AuthModule,
     SourceModule,
     // Remaining domain modules (translation, proposal) are added as M0
