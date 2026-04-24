@@ -1,6 +1,7 @@
 import { Module, type OnModuleDestroy } from "@nestjs/common";
 import { createDb, type Db } from "@poomgeul/db";
 
+import { AuthModule } from "../auth/auth.module.js";
 import { GeminiTranslationProvider } from "../translation/gemini-provider.js";
 import {
   TRANSLATION_PROVIDER,
@@ -39,6 +40,8 @@ class DbHolder implements OnModuleDestroy {
 }
 
 @Module({
+  // AuthModule에서 SessionGuard가 export되며, 여기 쓰기 엔드포인트에서 @UseGuards로 쓴다.
+  imports: [AuthModule],
   controllers: [SourceController, TranslationsController],
   providers: [
     DbHolder,

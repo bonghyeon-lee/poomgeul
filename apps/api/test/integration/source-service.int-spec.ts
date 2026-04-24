@@ -3,7 +3,12 @@
  *
  * ArxivClient를 stub으로 끼우고 실제 DB에 Source + Translation을 한 트랜잭션으로
  * 삽입하는 경로를 확인한다. withRollback이 모든 변경을 되돌리므로 연속 실행 안전.
+ *
+ * 인증(ADR-0005) 반영 이후: importerId는 호출자가 넘긴다. 각 케이스는 필요하면
+ * 테스트 안에서 User를 insert해 그 id를 쓴다.
  */
+
+import { randomUUID } from "node:crypto";
 
 import { eq, segments, sources, translations, users } from "@poomgeul/db";
 
@@ -56,6 +61,15 @@ function stubAr5ivMissing(): Ar5ivFetcher {
   } as unknown as Ar5ivFetcher;
 }
 
+async function insertImporter(db: import("@poomgeul/db").Db): Promise<string> {
+  const [row] = await db
+    .insert(users)
+    .values({ email: `importer-${randomUUID()}@example.invalid`, displayName: "importer" })
+    .returning();
+  if (!row) throw new Error("importer insert returned no row");
+  return row.id;
+}
+
 const MINIMAL_AR5IV = `
 <html><body>
   <div class="ltx_abstract"><p class="ltx_p">Abstract line one. Abstract line two.</p></div>
@@ -66,6 +80,7 @@ const MINIMAL_AR5IV = `
 describe("SourceService.createFromArxiv (integration)", () => {
   it("creates source + ko translation in one transaction for a CC BY paper", async () => {
     await withRollback(async (db) => {
+      const importerId = await insertImporter(db);
       const client = stubArxivClient({
         bareId: "2504.20451",
         version: "v1",
@@ -82,13 +97,12 @@ describe("SourceService.createFromArxiv (integration)", () => {
         stubDraftSkipped(),
       );
 
-      const result = await service.createFromArxiv(arxivParsed("2504.20451"));
+      const result = await service.createFromArxiv(arxivParsed("2504.20451"), importerId);
       expect(result.outcome).toBe("created");
       if (result.outcome !== "created") return;
       expect(result.segmentationStatus).toBe("ok");
       expect(result.segmentCount).toBeGreaterThan(0);
 
-      // source row inserted
       const srcRows = await db.select().from(sources).where(eq(sources.sourceId, result.sourceId));
       expect(srcRows).toHaveLength(1);
       expect(srcRows[0]).toMatchObject({
@@ -97,9 +111,9 @@ describe("SourceService.createFromArxiv (integration)", () => {
         attributionSource: "https://arxiv.org/abs/2504.20451",
         sourceVersion: "v1",
         originalLang: "en",
+        importedBy: importerId,
       });
 
-      // translation row inserted, ko
       const trRows = await db
         .select()
         .from(translations)
@@ -111,9 +125,9 @@ describe("SourceService.createFromArxiv (integration)", () => {
         license: "CC-BY",
         status: "draft",
         slug: result.slug,
+        leadId: importerId,
       });
 
-      // segments from parser persisted
       const segRows = await db
         .select()
         .from(segments)
@@ -121,18 +135,12 @@ describe("SourceService.createFromArxiv (integration)", () => {
       expect(segRows.length).toBe(result.segmentCount);
       expect(segRows.some((s) => s.kind === "body")).toBe(true);
       expect(segRows.some((s) => s.kind === "reference")).toBe(true);
-
-      // dev seed user was created once
-      const seed = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, "dev-seed@poomgeul.invalid"));
-      expect(seed).toHaveLength(1);
     });
   });
 
   it("still creates source + translation when ar5iv has no HTML (segmentationStatus=skipped)", async () => {
     await withRollback(async (db) => {
+      const importerId = await insertImporter(db);
       const client = stubArxivClient({
         bareId: "2505.99999",
         version: "v1",
@@ -144,7 +152,7 @@ describe("SourceService.createFromArxiv (integration)", () => {
       const lookup = new LicenseLookupService(client, repo);
       const service = new SourceService(db, lookup, stubAr5ivMissing(), stubDraftSkipped());
 
-      const result = await service.createFromArxiv(arxivParsed("2505.99999"));
+      const result = await service.createFromArxiv(arxivParsed("2505.99999"), importerId);
       if (result.outcome !== "created") throw new Error("expected created");
       expect(result.segmentationStatus).toBe("skipped");
       expect(result.segmentCount).toBe(0);
@@ -160,17 +168,14 @@ describe("SourceService.createFromArxiv (integration)", () => {
         .from(translations)
         .where(eq(translations.translationId, result.translationId));
       expect(trRows).toHaveLength(1);
+      expect(trRows[0]?.leadId).toBe(importerId);
     });
   });
 
   it("returns already-registered with the existing slug when a ko translation exists", async () => {
     await withRollback(async (db) => {
-      // pre-seed an existing translation
-      const lead = await db
-        .insert(users)
-        .values({ email: "dev-seed@poomgeul.invalid", displayName: "dev seed" })
-        .returning();
-      const srcRow = await db
+      const prevLead = await insertImporter(db);
+      const [srcRow] = await db
         .insert(sources)
         .values({
           title: "Existing CC BY",
@@ -179,13 +184,14 @@ describe("SourceService.createFromArxiv (integration)", () => {
           license: "CC-BY",
           attributionSource: "https://arxiv.org/abs/2504.20451",
           sourceVersion: "v1",
-          importedBy: lead[0]!.id,
+          importedBy: prevLead,
         })
         .returning();
+      if (!srcRow) throw new Error("pre-seed source insert returned no row");
       await db.insert(translations).values({
-        sourceId: srcRow[0]!.sourceId,
+        sourceId: srcRow.sourceId,
         targetLang: "ko",
-        leadId: lead[0]!.id,
+        leadId: prevLead,
         status: "reviewed",
         license: "CC-BY",
         slug: "existing-slug",
@@ -202,7 +208,10 @@ describe("SourceService.createFromArxiv (integration)", () => {
       const lookup = new LicenseLookupService(client, repo);
       const service = new SourceService(db, lookup, stubAr5ivMissing(), stubDraftSkipped());
 
-      const result = await service.createFromArxiv(arxivParsed("2504.20451"));
+      // A different user tries to re-register — they should be routed to the
+      // existing slug, not create a second row.
+      const otherUser = await insertImporter(db);
+      const result = await service.createFromArxiv(arxivParsed("2504.20451"), otherUser);
       expect(result).toMatchObject({
         outcome: "already-registered",
         slug: "existing-slug",
@@ -212,6 +221,7 @@ describe("SourceService.createFromArxiv (integration)", () => {
 
   it("does not insert anything when the license is blocked", async () => {
     await withRollback(async (db) => {
+      const importerId = await insertImporter(db);
       const client = stubArxivClient({
         bareId: "2401.11112",
         version: "v1",
@@ -223,7 +233,7 @@ describe("SourceService.createFromArxiv (integration)", () => {
       const lookup = new LicenseLookupService(client, repo);
       const service = new SourceService(db, lookup, stubAr5ivMissing(), stubDraftSkipped());
 
-      const result = await service.createFromArxiv(arxivParsed("2401.11112"));
+      const result = await service.createFromArxiv(arxivParsed("2401.11112"), importerId);
       expect(result).toMatchObject({ outcome: "blocked", license: "CC-BY-ND" });
 
       // 생성 경로가 열리지 않았으니 source는 비어 있다.

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Post, Query, UseGuards } from "@nestjs/common";
 import {
   ApiBody,
   ApiOkResponse,
@@ -6,9 +6,13 @@ import {
   ApiProperty,
   ApiQuery,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
+import type { User } from "@poomgeul/db";
 import { IsString, MaxLength } from "class-validator";
 
+import { CurrentUser } from "../auth/current-user.decorator.js";
+import { SessionGuard } from "../auth/session.guard.js";
 import { SourceInputError, parseSourceInput } from "./input.js";
 import { LicenseLookupService, type LicenseLookupResult } from "./license-lookup.js";
 import { SourceService, type CreateTranslationResult } from "./source.service.js";
@@ -82,20 +86,26 @@ export class SourceController {
   }
 
   @Post()
+  @UseGuards(SessionGuard)
   @ApiOperation({
     summary: "Register a new Source + Translation (M0 import flow)",
     description:
       "Re-runs the license lookup, then creates Source and Translation rows " +
       "in one transaction if the license is allowed. arXiv only in M0 — DOI " +
       "returns `unsupported-format`. The segmentation pass (M0 #3) runs " +
-      "separately; Segment rows are empty on creation.",
+      "separately; Segment rows are empty on creation. Requires an authenticated " +
+      "session; the caller becomes the Source importer and Translation lead.",
   })
   @ApiBody({ type: CreateSourceBody })
   @ApiOkResponse({
     description:
       "Creation result. `created` on success, `already-registered` if the source exists with a ko translation, or any of the lookup failure outcomes passthrough.",
   })
-  async createSource(@Body() body: CreateSourceBody): Promise<CreateApiResult> {
+  @ApiUnauthorizedResponse({ description: "No session cookie or session is invalid/expired." })
+  async createSource(
+    @Body() body: CreateSourceBody,
+    @CurrentUser() user: User,
+  ): Promise<CreateApiResult> {
     const raw = typeof body?.input === "string" ? body.input : "";
     let parsed;
     try {
@@ -110,7 +120,7 @@ export class SourceController {
           "M0는 arXiv 원문만 import한다. DOI 경로는 M1에서 Crossref·DOAJ 연동과 함께 추가된다.",
       };
     }
-    return this.sourceService.createFromArxiv(parsed);
+    return this.sourceService.createFromArxiv(parsed, user.id);
   }
 }
 
