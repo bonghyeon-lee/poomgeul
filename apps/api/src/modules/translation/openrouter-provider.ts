@@ -23,7 +23,12 @@ import type { TranslationProvider } from "./translation-provider.js";
  * OpenRouter의 free slate는 때때로 바뀌므로 사용자가 .env로 바꿀 수 있게 뒀다.
  */
 
-const DEFAULT_MODEL = "google/gemma-2-9b-it:free";
+// OpenRouter free slate는 공급자(provider)별로 바뀌고 가용성이 유동적.
+// 2026-04 시점엔 `google/gemma-3-27b-it:free`가 안정적이고 한국어 품질이
+// 괜찮다. 404("No endpoints found") 또는 400("Developer instruction is not
+// enabled") 같은 에러가 나오면 `GET https://openrouter.ai/api/v1/models`에서
+// 현재 유효한 `:free` slug를 확인하고 LLM_FALLBACK_MODEL로 교체한다.
+const DEFAULT_MODEL = "google/gemma-3-27b-it:free";
 const DEFAULT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_TIMEOUT_MS = 60_000;
 const PROMPT_FILE_SINGLE = "translate.en-ko.v1.md";
@@ -88,10 +93,10 @@ export class OpenRouterTranslationProvider implements TranslationProvider {
       model: this.model,
       temperature: prompt.frontmatter.temperature ?? 0.2,
       max_tokens: prompt.frontmatter.maxOutputTokens ?? 8192,
-      messages: [
-        { role: "system", content: prompt.body },
-        { role: "user", content: req.text },
-      ],
+      // Gemma-3 같은 Google 백엔드 경유 모델은 OpenAI-호환 `system` role을 받지 않는다
+      // ("Developer instruction is not enabled"로 400을 돌려준다). 어떤 백엔드로
+      // 라우팅되든 동작하도록 system + user를 단일 user 메시지로 병합한다.
+      messages: [{ role: "user", content: mergeSystemWithUser(prompt.body, req.text) }],
     };
 
     const { payload, latencyMs } = await this.postChat(body, "translate");
@@ -127,16 +132,10 @@ export class OpenRouterTranslationProvider implements TranslationProvider {
       model: this.model,
       temperature: prompt.frontmatter.temperature ?? 0.2,
       max_tokens: prompt.frontmatter.maxOutputTokens ?? 32_768,
-      messages: [
-        { role: "system", content: prompt.body },
-        {
-          role: "user",
-          // v2 프롬프트가 이미 JSON-array 응답 계약을 담고 있다. OpenRouter는
-          // providers마다 JSON 강제 여부가 달라 response_format을 강제하지 않고
-          // 프롬프트 + 파싱 사후검증으로 처리.
-          content: userPayload,
-        },
-      ],
+      // single과 동일하게 system + user 페이로드를 병합. v2 프롬프트가 이미
+      // JSON-array 응답 계약을 담고 있어 response_format은 강제하지 않고 파싱
+      // 사후검증으로 처리.
+      messages: [{ role: "user", content: mergeSystemWithUser(prompt.body, userPayload) }],
     };
 
     const { payload, latencyMs } = await this.postChat(body, "translateBatch");
@@ -239,6 +238,16 @@ export class OpenRouterTranslationProvider implements TranslationProvider {
     }
     return cached;
   }
+}
+
+/**
+ * system prompt와 user 페이로드를 한 user 메시지로 병합. Google AI Studio 경유
+ * 모델(Gemma-3 계열)은 OpenAI-호환 `system` role을 받지 않고 400을 돌려주기
+ * 때문에, OpenRouter에서 어떤 백엔드로 라우팅되든 동작하도록 단일 user로 보낸다.
+ * 경계가 모호해지지 않도록 명확한 구분선을 넣는다.
+ */
+function mergeSystemWithUser(systemPrompt: string, userContent: string): string {
+  return `${systemPrompt}\n\n---\n\n${userContent}`;
 }
 
 /**
