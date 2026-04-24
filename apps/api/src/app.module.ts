@@ -6,6 +6,7 @@ import { ConfigModule } from "@nestjs/config";
 import { DatabaseModule } from "./db/database.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
 import { HealthController } from "./modules/health/health.controller.js";
+import { ProposalModule } from "./modules/proposal/proposal.module.js";
 import { SourceModule } from "./modules/source/source.module.js";
 
 // apps/api에서 `pnpm dev`로 실행할 때 cwd가 apps/api이므로 기본 탐색 경로가
@@ -25,8 +26,9 @@ const LOCAL_ENV = resolve(process.cwd(), ".env");
     DatabaseModule,
     AuthModule,
     SourceModule,
-    // Remaining domain modules (translation, proposal) are added as M0
-    // implementation lands — see docs/specs/m0-mvp.md.
+    ProposalModule,
+    // Remaining domain modules land as M0 implementation progresses —
+    // see docs/specs/m0-mvp.md.
   ],
   controllers: [HealthController],
 })

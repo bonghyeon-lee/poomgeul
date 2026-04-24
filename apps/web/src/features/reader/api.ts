@@ -64,6 +64,49 @@ function apiBase(): string {
   return process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
 }
 
+/**
+ * Reader 페이지에서 제안 섹션·세그먼트 카드 chip을 채우기 위한 경량 목록.
+ * ADR-0006에 따라 Reader 번들에서 분리해 별도 엔드포인트에서 가져온다.
+ * API 실패 시 빈 배열로 폴백해 Reader가 계속 렌더되도록.
+ */
+export async function loadProposalsFromApi(slug: string): Promise<ProposalSummary[]> {
+  const url = `${apiBase()}/api/translations/${encodeURIComponent(slug)}/proposals`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "GET",
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+  } catch {
+    return [];
+  }
+  if (!res.ok) return [];
+
+  type ApiItem = {
+    proposalId: string;
+    segmentId: string;
+    proposerDisplayName: string | null;
+    proposerGithubHandle: string | null;
+    status: ProposalSummary["status"];
+    createdAt: string;
+  };
+  let items: ApiItem[];
+  try {
+    items = (await res.json()) as ApiItem[];
+  } catch {
+    return [];
+  }
+
+  return items.map((p) => ({
+    proposalId: p.proposalId,
+    segmentId: p.segmentId,
+    proposerDisplayName: p.proposerDisplayName ?? p.proposerGithubHandle ?? "(이름 없음)",
+    status: p.status,
+    createdAt: p.createdAt,
+  }));
+}
+
 export type TranslationListItem = {
   translationId: string;
   slug: string;
