@@ -9,6 +9,7 @@ test.describe("landing page", () => {
   test("links to the API docs", async ({ page }) => {
     await page.goto("/");
     const links = page.getByRole("link", { name: /API 문서/ });
-    await expect(links.first()).toHaveAttribute("href", "http://localhost:3000/api/docs");
+    // AppHeader(layout)·footer 양쪽 모두 Next rewrite 경유의 상대 URL을 사용한다.
+    await expect(links.first()).toHaveAttribute("href", "/api/docs");
   });
 });

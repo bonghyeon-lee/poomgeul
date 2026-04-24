@@ -14,7 +14,7 @@ describe("Home (landing)", () => {
     const links = screen.getAllByRole("link", { name: /API 문서/i });
     expect(links.length).toBeGreaterThan(0);
     for (const link of links) {
-      expect(link).toHaveAttribute("href", "http://localhost:3000/api/docs");
+      expect(link).toHaveAttribute("href", "/api/docs");
     }
   });
 });
