@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Chip, LicenseBadge, Logo } from "@/components/ui";
+import { Chip, LicenseBadge } from "@/components/ui";
 import {
   AttributionBlock,
   findReaderBundleBySlug,
@@ -91,15 +91,13 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
 
   return (
     <div className={styles.shell}>
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <div className={styles.crumbs}>
-            <Logo variant="mark" href="/" ariaLabel="poomgeul 홈" />
-            <span className={styles.crumbsSep}>/</span>
+      <main className={styles.main}>
+        <div className={styles.pageBar}>
+          <nav className={styles.crumbs} aria-label="breadcrumb">
             <Link href="/translations">번역본 목록</Link>
             <span className={styles.crumbsSep}>/</span>
             <span>{source.sourceVersion}</span>
-          </div>
+          </nav>
           <div className={styles.headerMeta}>
             <span className={styles.statusTag}>{translation.status}</span>
             <span className={styles.crumbsSep}>·</span>
@@ -108,9 +106,6 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
             <LicenseBadge kind={translation.license} />
           </div>
         </div>
-      </header>
-
-      <main className={styles.main}>
         <section className={styles.title}>
           <span className={styles.langPair}>
             arxiv:{source.attributionSource.split("/").pop()} · {source.sourceVersion}
@@ -244,22 +239,17 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
 function PendingSegmentsView({ slug }: { slug: string }) {
   return (
     <div className={styles.shell}>
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <div className={styles.crumbs}>
-            <Logo variant="mark" href="/" ariaLabel="poomgeul 홈" />
-            <span className={styles.crumbsSep}>/</span>
+      <main className={styles.main}>
+        <div className={styles.pageBar}>
+          <nav className={styles.crumbs} aria-label="breadcrumb">
             <Link href="/">홈</Link>
             <span className={styles.crumbsSep}>/</span>
             <span>{slug}</span>
-          </div>
+          </nav>
           <div className={styles.headerMeta}>
             <span className={styles.statusTag}>pending</span>
           </div>
         </div>
-      </header>
-
-      <main className={styles.main}>
         <section className={styles.title}>
           <h1 className={styles.paperTitle}>세그먼트 분할 대기 중</h1>
           <p className={styles.byline}>slug: {slug}</p>

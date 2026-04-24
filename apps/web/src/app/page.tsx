@@ -1,33 +1,10 @@
-import {
-  Button,
-  Card,
-  CardBody,
-  CardEyebrow,
-  CardTitle,
-  Chip,
-  Eyebrow,
-  Logo,
-} from "@/components/ui";
+import { Button, Card, CardBody, CardEyebrow, CardTitle, Chip, Eyebrow } from "@/components/ui";
 
 import styles from "./page.module.css";
 
 export default function Home() {
   return (
     <div className={styles.shell}>
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <Logo variant="wordmark-ko" priority />
-          <nav className={styles.nav} aria-label="주요 링크">
-            <a href="https://github.com/bonghyeon-lee/poomgeul" rel="noreferrer">
-              GitHub
-            </a>
-            <a href="http://localhost:3000/api/docs" rel="noreferrer">
-              API 문서
-            </a>
-          </nav>
-        </div>
-      </header>
-
       <main className={styles.main}>
         <section className={styles.hero}>
           <div className={styles.heroInner}>
