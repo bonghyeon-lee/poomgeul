@@ -1,16 +1,19 @@
 import { Module } from "@nestjs/common";
 
+import { AuthModule } from "../auth/auth.module.js";
 import { ProposalController } from "./proposal.controller.js";
 import { ProposalRepository } from "./proposal.repository.js";
 import { ProposalService } from "./proposal.service.js";
 
 /**
- * ADR-0006 Proposal CRUD. C1은 Read 경로만(C2: 생성, C3: decide/withdraw, C4: comments).
+ * ADR-0006 Proposal CRUD. C1은 Read, C2는 생성(이 PR). C3/C4에서 decide/
+ * withdraw/comments가 같은 서비스·레포에 메서드로 덧붙는다.
  *
  * DB_TOKEN은 @Global() DatabaseModule에서 해소되므로 imports에 명시 불필요.
- * 쓰기 엔드포인트가 추가되는 C2부터 AuthModule import(SessionGuard용)가 붙는다.
+ * AuthModule은 SessionGuard·@CurrentUser 주입 경로(쓰기 엔드포인트).
  */
 @Module({
+  imports: [AuthModule],
   controllers: [ProposalController],
   providers: [ProposalService, ProposalRepository],
 })

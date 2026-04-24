@@ -28,15 +28,25 @@ import {
 import request from "supertest";
 
 import { DB_TOKEN } from "../../src/db/database.module.js";
+import { PgSessionStore } from "../../src/modules/auth/pg-session-store.js";
+import { SessionGuard } from "../../src/modules/auth/session.guard.js";
+import { SESSION_STORE } from "../../src/modules/auth/session-store.js";
 import { ProposalController } from "../../src/modules/proposal/proposal.controller.js";
 import { ProposalRepository } from "../../src/modules/proposal/proposal.repository.js";
 import { ProposalService } from "../../src/modules/proposal/proposal.service.js";
 import { TEST_DATABASE_URL } from "../db/test-db.js";
 
+/**
+ * C2에서 ProposalController에 POST + SessionGuard가 추가되며, Nest는 컨트롤러
+ * 로딩 시점에 모든 핸들러의 가드 의존을 resolve한다. 따라서 Read-only 테스트도
+ * SessionGuard와 SESSION_STORE를 provider에 포함해야 한다.
+ */
 @Module({
   controllers: [ProposalController],
   providers: [
     { provide: DB_TOKEN, useFactory: () => createDb(TEST_DATABASE_URL) },
+    { provide: SESSION_STORE, useClass: PgSessionStore },
+    SessionGuard,
     ProposalService,
     ProposalRepository,
   ],
