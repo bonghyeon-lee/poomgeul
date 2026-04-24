@@ -1,4 +1,13 @@
-import { Controller, Get, Inject, NotFoundException, Param, Post, Query } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Inject,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import {
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -6,8 +15,10 @@ import {
   ApiParam,
   ApiQuery,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 
+import { SessionGuard } from "../auth/session.guard.js";
 import {
   SourceRepository,
   type ReaderBundleRow,
@@ -62,21 +73,25 @@ export class TranslationsController {
   }
 
   @Post(":slug/reprocess")
+  @UseGuards(SessionGuard)
   @ApiOperation({
     summary: "Re-run ar5iv segmentation + LLM draft for an existing translation",
     description:
       "Deletes current segments/translation_segments for the translation and rebuilds them " +
       "from scratch. Intended as a manual retry path for pending translations whose " +
       "original import ran before M0 #3/#4 were live, or whose draft partially failed. " +
-      "User-triggered only — no automatic retry.",
+      "User-triggered only — no automatic retry. The existing translation.leadId is " +
+      "preserved; this endpoint does not transfer ownership.",
   })
   @ApiParam({ name: "slug", type: String })
   @ApiOkResponse({ description: "Reprocess outcome union." })
+  @ApiUnauthorizedResponse({ description: "No session cookie or session is invalid/expired." })
   async reprocess(@Param("slug") slug: string): Promise<ReprocessResult> {
     return this.sourceService.reprocess(slug);
   }
 
   @Post(":slug/retry-failed")
+  @UseGuards(SessionGuard)
   @ApiOperation({
     summary: "Retry only the failed (aiDraftText=null) translation segments",
     description:
@@ -87,6 +102,7 @@ export class TranslationsController {
   })
   @ApiParam({ name: "slug", type: String })
   @ApiOkResponse({ description: "Retry outcome union." })
+  @ApiUnauthorizedResponse({ description: "No session cookie or session is invalid/expired." })
   async retryFailed(@Param("slug") slug: string): Promise<RetryFailedResult> {
     return this.sourceService.retryFailedDrafts(slug);
   }
