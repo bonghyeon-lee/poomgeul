@@ -39,8 +39,11 @@ import { SESSION_STORE, type SessionStore } from "./session-store.js";
 export class AuthController {
   private readonly webBaseUrl = process.env.WEB_BASE_URL ?? "http://localhost:3001";
 
+  // tsx dev runner는 emitDecoratorMetadata를 생성하지 않아 Nest가 타입-기반 DI
+  // 토큰을 읽지 못한다. @Inject(Class)로 명시하면 메타데이터 없이도 주입된다.
+  // SourceController도 같은 이유로 @Inject를 쓴다 — 그쪽 주석 참고.
   constructor(
-    private readonly auth: AuthService,
+    @Inject(AuthService) private readonly auth: AuthService,
     @Inject(SESSION_STORE) private readonly sessions: SessionStore,
   ) {}
 
