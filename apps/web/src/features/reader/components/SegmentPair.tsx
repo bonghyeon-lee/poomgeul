@@ -34,6 +34,23 @@ function draftSignal(translation: TranslationSegment) {
   return { label: "human edited", cls: styles.humanEdited! };
 }
 
+/**
+ * "provider/slug:suffix" 형태의 긴 모델 식별자를 meta 줄에 얹기 위해 짧게 다듬는다.
+ * OpenRouter의 free slate("google/gemma-2-9b-it:free")는 슬래시 뒤 기본명을, Gemini
+ * 네이티브 식별자("gemini-2.5-flash")는 그대로 노출한다. AI 번역이 없거나
+ * 사람 편집으로 원문 대비 바뀐 세그먼트면 배지를 숨긴다(모델 정보가 더 이상 정확한
+ * 출처가 아니기 때문).
+ */
+function formatModelLabel(source: TranslationSegment["aiDraftSource"]): string | null {
+  if (!source?.model) return null;
+  const raw = source.model;
+  const afterSlash = raw.includes("/") ? (raw.split("/").pop() ?? raw) : raw;
+  const suffixSplit = afterSlash.split(":");
+  const stem = suffixSplit[0] ?? afterSlash;
+  const isFree = suffixSplit[1] === "free";
+  return isFree ? `${stem} · free` : stem;
+}
+
 export function SegmentPair({ segment, translation, openProposalStatus }: SegmentPairProps) {
   const signal = draftSignal(translation);
   const kindCls = KIND_CLASS[segment.kind];
@@ -58,6 +75,17 @@ export function SegmentPair({ segment, translation, openProposalStatus }: Segmen
           <span className={signal.cls}>{signal.label}</span>
           <span className={styles.metaDivider}>·</span>
           <span>v{translation.version}</span>
+          {formatModelLabel(translation.aiDraftSource) ? (
+            <>
+              <span className={styles.metaDivider}>·</span>
+              <span
+                className={styles.modelBadge}
+                title={translation.aiDraftSource?.model ?? undefined}
+              >
+                {formatModelLabel(translation.aiDraftSource)}
+              </span>
+            </>
+          ) : null}
           {openProposalStatus ? (
             <span className={styles.proposalChip}>
               <Chip status={openProposalStatus}>{openProposalStatus}</Chip>

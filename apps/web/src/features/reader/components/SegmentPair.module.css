@@ -119,6 +119,13 @@
   letter-spacing: var(--tracking-wide);
 }
 
+.modelBadge {
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-fg-subtle);
+}
+
 .proposalChip {
   margin-left: auto;
 }

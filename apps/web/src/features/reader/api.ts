@@ -56,6 +56,12 @@ type ApiBundle = {
     segmentId: string;
     text: string;
     aiDraftText: string | null;
+    aiDraftSource: {
+      model: string;
+      promptHash: string;
+      promptVersion?: string;
+      version?: string;
+    } | null;
     version: number;
     status: TranslationSegment["status"];
   }>;
@@ -282,7 +288,7 @@ function toReaderBundle(api: ApiBundle): ReaderBundle {
         segmentId: seg.segmentId,
         text: existing.text,
         aiDraftText: existing.aiDraftText,
-        aiDraftSource: null,
+        aiDraftSource: existing.aiDraftSource,
         version: existing.version,
         lastEditorId: translation.leadId,
         lastEditedAt: api.source.importedAt,
