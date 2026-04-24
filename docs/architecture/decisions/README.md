@@ -42,3 +42,4 @@
 | [0004](0004-source-parser.md) | 원문 파싱 소스: ar5iv HTML 1차 경로 | Accepted |
 | [0005](0005-github-oauth-session.md) | GitHub OAuth + DB 세션 | Accepted |
 | [0006](0006-proposal-crud-api.md) | Proposal CRUD API — 경로·페이로드·PR 분해 전략 | Accepted |
+| [0007](0007-proposal-blocklist.md) | Proposal Blocklist — 번역본 단위 사용자 차단 모델 | Accepted |

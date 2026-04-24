@@ -254,8 +254,11 @@ export class ProposalRepository {
           text: translationSegments.text,
         });
       if (updated.length !== 1 || !updated[0]) {
-        // 누군가 같은 트랜잭션 밖에서 방금 version을 올린 경쟁 조건.
-        // transaction isolation은 postgres 기본(read committed). 재조회해 충돌 정보 반환.
+        // 2중 방어의 2단계: 1단계로 이미 위에서 version 비교를 했고, 2단계는 UPDATE ...
+        // WHERE version=current.version이다. 사이에 다른 트랜잭션이 version을 올리면
+        // 이 UPDATE가 0행을 돌려준다(postgres 기본 read committed + unique 제약 없음 조합
+        // 에서 추가 방어). 이 분기에서 현재 상태를 재조회해 ADR-0003의 rebase_required로
+        // 응답 — 상위 서비스가 ConflictException으로 올려 ADR-0006 에러 모델에 합류.
         const raceRows = await tx
           .select({ text: translationSegments.text, version: translationSegments.version })
           .from(translationSegments)
