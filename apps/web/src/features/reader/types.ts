@@ -79,6 +79,8 @@ export type Contributor = {
 export type ProposalSummary = {
   proposalId: string;
   segmentId: string;
+  /** proposer 본인이 보는 "철회" 버튼 렌더를 위해 목록에 함께 내려준다. */
+  proposerId: string;
   proposerDisplayName: string;
   status: ProposalStatus;
   createdAt: string;
