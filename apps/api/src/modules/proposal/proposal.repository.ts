@@ -5,7 +5,9 @@ import {
   type Db,
   desc,
   eq,
+  isNull,
   type Proposal,
+  proposalBlocklist,
   proposalComments,
   proposals,
   segments,
@@ -125,6 +127,18 @@ export type RebaseConflict = {
   currentVersion: number;
   currentText: string;
 };
+
+export interface BlocklistEntry {
+  translationId: string;
+  userId: string;
+  userDisplayName: string | null;
+  userGithubHandle: string | null;
+  blockedBy: string;
+  reason: string | null;
+  createdAt: string;
+  revokedAt: string | null;
+  revokedBy: string | null;
+}
 
 export interface CreateCommentInput {
   proposalId: string;
@@ -666,6 +680,165 @@ export class ProposalRepository {
       )
       .limit(1);
     return rows[0] ?? null;
+  }
+
+  // ---------- ADR-0007 Blocklist ----------
+
+  /**
+   * 활성 차단 여부(revoked_at IS NULL) 단일 lookup. ProposalService.create의 맨 앞
+   * gate. partial index(proposal_blocklist_active_idx)를 그대로 탄다.
+   */
+  async isBlocked(translationId: string, userId: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ t: proposalBlocklist.translationId })
+      .from(proposalBlocklist)
+      .where(
+        and(
+          eq(proposalBlocklist.translationId, translationId),
+          eq(proposalBlocklist.userId, userId),
+          isNull(proposalBlocklist.revokedAt),
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  /**
+   * 차단 생성 또는 재차단. PK=(translation_id, user_id)라 기존 row가 있으면
+   * UPDATE로 revoked_at을 다시 null로 돌리고 blocked_by/reason을 갱신.
+   * ADR-0007 §4 "재차단은 동일 row UPDATE" 계약.
+   */
+  async upsertBlock(input: {
+    translationId: string;
+    userId: string;
+    blockedBy: string;
+    reason: string | null;
+  }): Promise<BlocklistEntry> {
+    return this.db.transaction(async (tx) => {
+      const existing = await tx
+        .select()
+        .from(proposalBlocklist)
+        .where(
+          and(
+            eq(proposalBlocklist.translationId, input.translationId),
+            eq(proposalBlocklist.userId, input.userId),
+          ),
+        )
+        .limit(1);
+
+      if (existing[0]) {
+        await tx
+          .update(proposalBlocklist)
+          .set({
+            blockedBy: input.blockedBy,
+            reason: input.reason,
+            revokedAt: null,
+            revokedBy: null,
+            // created_at은 최초 생성 시각을 유지. 재차단 시각이 필요하면 별도 컬럼을
+            // 도입해야 한다(현 M0 범위 외).
+          })
+          .where(
+            and(
+              eq(proposalBlocklist.translationId, input.translationId),
+              eq(proposalBlocklist.userId, input.userId),
+            ),
+          );
+      } else {
+        await tx.insert(proposalBlocklist).values({
+          translationId: input.translationId,
+          userId: input.userId,
+          blockedBy: input.blockedBy,
+          reason: input.reason,
+        });
+      }
+
+      const [row] = await tx
+        .select({
+          translationId: proposalBlocklist.translationId,
+          userId: proposalBlocklist.userId,
+          userDisplayName: users.displayName,
+          userGithubHandle: users.githubHandle,
+          blockedBy: proposalBlocklist.blockedBy,
+          reason: proposalBlocklist.reason,
+          createdAt: proposalBlocklist.createdAt,
+          revokedAt: proposalBlocklist.revokedAt,
+          revokedBy: proposalBlocklist.revokedBy,
+        })
+        .from(proposalBlocklist)
+        .innerJoin(users, eq(users.id, proposalBlocklist.userId))
+        .where(
+          and(
+            eq(proposalBlocklist.translationId, input.translationId),
+            eq(proposalBlocklist.userId, input.userId),
+          ),
+        )
+        .limit(1);
+      if (!row) throw new Error("upsertBlock: post-write select returned no row");
+      return this.toBlocklistEntry(row);
+    });
+  }
+
+  /**
+   * Soft delete. 존재하지 않거나 이미 revoked된 row에 대해 idempotent하게 no-op.
+   * 반환값은 "실제로 상태가 revoked로 전이된 row가 있었는가".
+   */
+  async revokeBlock(translationId: string, userId: string, revokedBy: string): Promise<boolean> {
+    const result = await this.db
+      .update(proposalBlocklist)
+      .set({ revokedAt: new Date(), revokedBy })
+      .where(
+        and(
+          eq(proposalBlocklist.translationId, translationId),
+          eq(proposalBlocklist.userId, userId),
+          isNull(proposalBlocklist.revokedAt),
+        ),
+      )
+      .returning({ userId: proposalBlocklist.userId });
+    return result.length > 0;
+  }
+
+  async listBlocklist(translationId: string): Promise<BlocklistEntry[]> {
+    const rows = await this.db
+      .select({
+        translationId: proposalBlocklist.translationId,
+        userId: proposalBlocklist.userId,
+        userDisplayName: users.displayName,
+        userGithubHandle: users.githubHandle,
+        blockedBy: proposalBlocklist.blockedBy,
+        reason: proposalBlocklist.reason,
+        createdAt: proposalBlocklist.createdAt,
+        revokedAt: proposalBlocklist.revokedAt,
+        revokedBy: proposalBlocklist.revokedBy,
+      })
+      .from(proposalBlocklist)
+      .innerJoin(users, eq(users.id, proposalBlocklist.userId))
+      .where(eq(proposalBlocklist.translationId, translationId))
+      .orderBy(desc(proposalBlocklist.createdAt));
+    return rows.map((r) => this.toBlocklistEntry(r));
+  }
+
+  private toBlocklistEntry(row: {
+    translationId: string;
+    userId: string;
+    userDisplayName: string | null;
+    userGithubHandle: string | null;
+    blockedBy: string;
+    reason: string | null;
+    createdAt: Date;
+    revokedAt: Date | null;
+    revokedBy: string | null;
+  }): BlocklistEntry {
+    return {
+      translationId: row.translationId,
+      userId: row.userId,
+      userDisplayName: row.userDisplayName,
+      userGithubHandle: row.userGithubHandle,
+      blockedBy: row.blockedBy,
+      reason: row.reason,
+      createdAt: row.createdAt.toISOString(),
+      revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
+      revokedBy: row.revokedBy,
+    };
   }
 }
 

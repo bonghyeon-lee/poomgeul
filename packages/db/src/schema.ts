@@ -296,6 +296,37 @@ export const proposals = pgTable("proposals", {
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 });
 
+// ---------- ProposalBlocklist [M0] (ADR-0007) ----------
+// 리드가 자기 번역본에서 특정 사용자의 새 제안을 차단. soft delete(revoked_at)로
+// 재차단·감사 추적을 위해 row를 지우지 않는다. 핫패스는 proposal 생성 시의 gate
+// lookup이라 partial index로 최적화(ADR-0005 sessions와 동일 패턴).
+
+export const proposalBlocklist = pgTable(
+  "proposal_blocklist",
+  {
+    translationId: uuid("translation_id")
+      .notNull()
+      .references(() => translations.translationId, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    blockedBy: uuid("blocked_by")
+      .notNull()
+      .references(() => users.id),
+    reason: text("reason"), // 리드 전용 메모. ADR-0007: 기본 비공개.
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedBy: uuid("revoked_by").references(() => users.id),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.translationId, t.userId] }),
+    // 활성 차단 조회 경로: WHERE translation_id=? AND user_id=? AND revoked_at IS NULL
+    activeLookup: index("proposal_blocklist_active_idx")
+      .on(t.translationId, t.userId)
+      .where(sql`${t.revokedAt} is null`),
+  }),
+);
+
 // ---------- ProposalComment [M0] (inline anchor deferred to M2) ----------
 
 export const proposalComments = pgTable("proposal_comments", {
@@ -406,6 +437,7 @@ export const schema = {
   translationSegments,
   translationRevisions,
   proposals,
+  proposalBlocklist,
   proposalComments,
   contributions,
   notes,
@@ -427,3 +459,5 @@ export type Translation = typeof translations.$inferSelect;
 export type TranslationSegment = typeof translationSegments.$inferSelect;
 export type Proposal = typeof proposals.$inferSelect;
 export type NewProposal = typeof proposals.$inferInsert;
+export type ProposalBlocklistRow = typeof proposalBlocklist.$inferSelect;
+export type NewProposalBlocklistRow = typeof proposalBlocklist.$inferInsert;

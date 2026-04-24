@@ -7,9 +7,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 
-import type { CreateCommentBody, CreateProposalBody } from "./dto.js";
+import type { CreateBlocklistBody, CreateCommentBody, CreateProposalBody } from "./dto.js";
 import {
   type ApproveProposalResult,
+  type BlocklistEntry,
   type ListProposalsOptions,
   type ProposalComment,
   type ProposalDetail,
@@ -78,6 +79,19 @@ export class ProposalService {
         code: "not_found",
         message: `translation ${slug} not found`,
       });
+    }
+
+    // ADR-0007 §7: 정책 gate(blocklist)가 비즈니스 유효성 체크보다 먼저 평가.
+    // "차단된 사용자는 유효한 제안이라도 만들 수 없다"를 코드 순서에 반영.
+    // 리드 본인은 차단 대상이 될 수 없다(lead 탈취 시에도 자신을 차단하지 않음).
+    if (proposerId !== translation.leadId) {
+      const blocked = await this.repo.isBlocked(translation.translationId, proposerId);
+      if (blocked) {
+        throw new ForbiddenException({
+          code: "blocked_by_lead",
+          message: "이 번역본의 리드가 회원님의 새 제안을 차단했습니다",
+        });
+      }
     }
 
     const trimmedProposedText = body.proposedText.trim();
@@ -264,6 +278,78 @@ export class ProposalService {
       });
     }
     return this.repo.withdrawProposal(proposalId);
+  }
+
+  // ---------- ADR-0007 Blocklist ----------
+
+  async blockUser(
+    slug: string,
+    requesterId: string,
+    body: CreateBlocklistBody,
+  ): Promise<BlocklistEntry> {
+    const translation = await this.repo.findTranslationSnapshotBySlug(slug);
+    if (!translation) {
+      throw new NotFoundException({
+        code: "not_found",
+        message: `translation ${slug} not found`,
+      });
+    }
+    if (translation.leadId !== requesterId) {
+      throw new ForbiddenException({
+        code: "forbidden",
+        message: "only the translation lead can manage the blocklist",
+      });
+    }
+    if (body.userId === translation.leadId) {
+      // 리드가 자기 자신을 차단하는 것은 번역본을 무력화하는 의미라 금지.
+      throw new BadRequestException({
+        code: "validation_failed",
+        message: "lead cannot block themselves",
+      });
+    }
+    const trimmedReason = body.reason?.trim();
+    const reason = trimmedReason && trimmedReason.length > 0 ? trimmedReason : null;
+    return this.repo.upsertBlock({
+      translationId: translation.translationId,
+      userId: body.userId,
+      blockedBy: requesterId,
+      reason,
+    });
+  }
+
+  async unblockUser(slug: string, requesterId: string, userId: string): Promise<void> {
+    const translation = await this.repo.findTranslationSnapshotBySlug(slug);
+    if (!translation) {
+      throw new NotFoundException({
+        code: "not_found",
+        message: `translation ${slug} not found`,
+      });
+    }
+    if (translation.leadId !== requesterId) {
+      throw new ForbiddenException({
+        code: "forbidden",
+        message: "only the translation lead can manage the blocklist",
+      });
+    }
+    await this.repo.revokeBlock(translation.translationId, userId, requesterId);
+  }
+
+  async listBlocklist(slug: string, requesterId: string): Promise<BlocklistEntry[]> {
+    const translation = await this.repo.findTranslationSnapshotBySlug(slug);
+    if (!translation) {
+      throw new NotFoundException({
+        code: "not_found",
+        message: `translation ${slug} not found`,
+      });
+    }
+    if (translation.leadId !== requesterId) {
+      // 목록은 리드에게만 노출(ADR-0007 §6 reason 기본 비공개와 정합).
+      throw new ForbiddenException({
+        code: "forbidden",
+        message: "only the translation lead can read the blocklist",
+      });
+    }
+    return this.repo.listBlocklist(translation.translationId);
   }
 
   private async resolveTranslationId(slug: string): Promise<string> {

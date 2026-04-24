@@ -71,3 +71,23 @@ export class CreateCommentBody {
   @MaxLength(2000)
   body!: string;
 }
+
+/**
+ * ADR-0007 — 리드가 사용자를 이 번역본에서 차단. reason은 리드 전용 메모로
+ * 차단된 사용자에게 노출되지 않는다(ADR-0007 §6 기본 비공개).
+ */
+export class CreateBlocklistBody {
+  @ApiProperty({ description: "차단할 사용자의 UUID." })
+  @IsUUID()
+  userId!: string;
+
+  @ApiProperty({
+    description: "차단 사유(선택, 리드 전용 메모). 500자 이내.",
+    maxLength: 500,
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}

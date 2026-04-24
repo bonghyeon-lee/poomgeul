@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 
 import { AuthModule } from "../auth/auth.module.js";
+import { BlocklistController } from "./blocklist.controller.js";
 import { ProposalController } from "./proposal.controller.js";
 import { ProposalRepository } from "./proposal.repository.js";
 import { ProposalService } from "./proposal.service.js";
@@ -14,7 +15,7 @@ import { ProposalService } from "./proposal.service.js";
  */
 @Module({
   imports: [AuthModule],
-  controllers: [ProposalController],
+  controllers: [ProposalController, BlocklistController],
   providers: [ProposalService, ProposalRepository],
 })
 export class ProposalModule {}
