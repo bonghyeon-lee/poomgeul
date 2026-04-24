@@ -1,0 +1,96 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.intro {
+  font-size: var(--fs-13);
+  color: var(--color-fg-muted);
+  line-height: var(--lh-relaxed);
+  margin: 0;
+}
+
+.subhead {
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  color: var(--color-fg);
+  margin: var(--space-2) 0 0;
+}
+
+.empty {
+  font-size: var(--fs-12);
+  color: var(--color-fg-subtle);
+  margin: 0;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.rowRevoked {
+  opacity: 0.6;
+}
+
+.rowMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.who {
+  font-size: var(--fs-13);
+  color: var(--color-fg);
+  font-weight: var(--fw-medium);
+}
+
+.handle {
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  color: var(--color-fg-subtle);
+  margin-left: var(--space-1);
+}
+
+.when {
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  color: var(--color-fg-subtle);
+}
+
+.reason {
+  font-size: var(--fs-12);
+  color: var(--color-fg-muted);
+  font-style: italic;
+}
+
+.rowActions {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.error {
+  flex-basis: 100%;
+  font-size: var(--fs-12);
+  color: var(--color-rejected);
+  margin: 0;
+}

@@ -4,9 +4,12 @@ import Link from "next/link";
 import { Chip, LicenseBadge } from "@/components/ui";
 import {
   AttributionBlock,
+  BlocklistManager,
+  BlockProposerButton,
   DecideButtons,
   findReaderBundleBySlug,
   listReaderSlugs,
+  loadBlocklistFromApi,
   loadMe,
   loadProposalCommentsFromApi,
   loadProposalsFromApi,
@@ -82,6 +85,12 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
   const proposals = apiProposals.length > 0 ? apiProposals : bundle.proposals;
   const isAuthed = me !== null;
   const isLead = me !== null && me.id === translation.leadId;
+
+  // ADR-0007-2: 리드만 blocklist를 읽는다(API가 403 → null). 그 외 사용자는 섹션 자체가 숨겨진다.
+  const blocklistEntries = isLead ? await loadBlocklistFromApi(slug) : null;
+  const activelyBlockedUserIds = new Set(
+    (blocklistEntries ?? []).filter((e) => e.revokedAt === null).map((e) => e.userId),
+  );
 
   const tsByKey = new Map<string, (typeof translationSegments)[number]>();
   for (const ts of translationSegments) {
@@ -272,6 +281,15 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
                       {isOpen && isProposer && !isLead ? (
                         <WithdrawButton slug={slug} proposalId={p.proposalId} />
                       ) : null}
+                      {isLead &&
+                      p.proposerId !== translation.leadId &&
+                      !activelyBlockedUserIds.has(p.proposerId) ? (
+                        <BlockProposerButton
+                          slug={slug}
+                          proposerId={p.proposerId}
+                          proposerDisplayName={p.proposerDisplayName}
+                        />
+                      ) : null}
                     </div>
                     {threadComments ? (
                       <ProposalCommentThread
@@ -287,6 +305,16 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
             </div>
           )}
         </section>
+
+        {isLead && blocklistEntries !== null ? (
+          <section>
+            <div className={styles.sectionHeader}>
+              <h2>제안 차단 관리</h2>
+              <span className={styles.sectionHeaderHint}>리드 전용 · ADR-0007</span>
+            </div>
+            <BlocklistManager slug={slug} entries={blocklistEntries} />
+          </section>
+        ) : null}
 
         <section>
           <div className={styles.sectionHeader}>
