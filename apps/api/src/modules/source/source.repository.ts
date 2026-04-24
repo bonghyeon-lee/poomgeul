@@ -56,6 +56,19 @@ export type ReaderBundleRow = {
     segmentId: string;
     text: string;
     aiDraftText: string | null;
+    /**
+     * translation_segments.ai_draft_source JSONB. draft 생성 시점에 provider가
+     * 채워 준 모델 식별자 + 프롬프트 메타. UI가 "어떤 모델로 번역했는지" 배지에 쓴다.
+     * M0 초기에는 { model, promptHash, version } 키로 저장됐고 OpenRouter 폴백
+     * 도입 이후엔 { model, promptHash, promptVersion }이 들어올 수 있어, 저장된
+     * 형태가 섞여 있을 수 있다. UI는 model 만 쓰므로 나머지는 통과 그대로.
+     */
+    aiDraftSource: {
+      model: string;
+      promptHash: string;
+      promptVersion?: string;
+      version?: string;
+    } | null;
     version: number;
     status: "unreviewed" | "approved";
   }>;
@@ -198,6 +211,7 @@ export class SourceRepository {
         segmentId: translationSegments.segmentId,
         text: translationSegments.text,
         aiDraftText: translationSegments.aiDraftText,
+        aiDraftSource: translationSegments.aiDraftSource,
         version: translationSegments.version,
         status: translationSegments.status,
       })
@@ -232,7 +246,14 @@ export class SourceRepository {
         currentRevisionId: tr.currentRevisionId,
       },
       segments: segRows,
-      translationSegments: tsRows,
+      translationSegments: tsRows.map((r) => ({
+        segmentId: r.segmentId,
+        text: r.text,
+        aiDraftText: r.aiDraftText,
+        aiDraftSource: normalizeAiDraftSource(r.aiDraftSource),
+        version: r.version,
+        status: r.status,
+      })),
     };
   }
 
@@ -315,4 +336,29 @@ export class SourceRepository {
       };
     });
   }
+}
+
+/**
+ * Drizzle은 jsonb 컬럼을 `unknown`으로 돌려준다. draft가 생성된 경로가
+ * 시간에 따라 바뀌어 (`version` vs `promptVersion` 키 혼재) UI가 그대로 쓰기
+ * 어렵다. model 식별자만은 반드시 string이어야 하고 나머지는 loose하게 흘린다.
+ */
+function normalizeAiDraftSource(raw: unknown): {
+  model: string;
+  promptHash: string;
+  promptVersion?: string;
+  version?: string;
+} | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.model !== "string" || typeof r.promptHash !== "string") return null;
+  const out: {
+    model: string;
+    promptHash: string;
+    promptVersion?: string;
+    version?: string;
+  } = { model: r.model, promptHash: r.promptHash };
+  if (typeof r.promptVersion === "string") out.promptVersion = r.promptVersion;
+  if (typeof r.version === "string") out.version = r.version;
+  return out;
 }

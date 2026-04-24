@@ -1,10 +1,7 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 
-import {
-  type BatchTranslationItem,
-  GeminiTranslationProvider,
-  TranslationProviderError,
-} from "./gemini-provider.js";
+import { type BatchTranslationItem, TranslationProviderError } from "./gemini-provider.js";
+import type { TranslationProvider } from "./translation-provider.js";
 
 type SegmentKind = "body" | "caption" | "footnote" | "reference";
 
@@ -73,7 +70,7 @@ export class TranslationDraftService {
 
   constructor(
     @Inject(TRANSLATION_PROVIDER)
-    private readonly provider: GeminiTranslationProvider,
+    private readonly provider: TranslationProvider,
     options?: {
       rateLimitRetryDelayMs?: number;
       minCallIntervalMs?: number;
