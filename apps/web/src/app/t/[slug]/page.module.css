@@ -5,24 +5,15 @@
   background: var(--color-bg);
 }
 
-.header {
-  border-bottom: 1px solid var(--border);
-  background: rgba(250, 247, 242, 0.82);
-  backdrop-filter: saturate(1.2) blur(12px);
-  -webkit-backdrop-filter: saturate(1.2) blur(12px);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.headerInner {
+.pageBar {
   max-width: 1040px;
   margin: 0 auto;
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-4) var(--space-5) 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
+  width: 100%;
 }
 
 .crumbs {

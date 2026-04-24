@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import { Button, Input, LicenseBadge, Logo } from "@/components/ui";
+import { Button, Input, LicenseBadge } from "@/components/ui";
 import {
   SourceInputError,
   createSource,
@@ -105,19 +105,12 @@ export default function ImportPage() {
 
   return (
     <div className={styles.shell}>
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <div className={styles.crumbs}>
-            <Logo variant="mark" href="/" ariaLabel="poomgeul 홈" />
-            <span className={styles.crumbsSep}>/</span>
-            <Link href="/">홈</Link>
-            <span className={styles.crumbsSep}>/</span>
-            <span>import</span>
-          </div>
-        </div>
-      </header>
-
       <main className={styles.main}>
+        <nav className={styles.crumbs} aria-label="breadcrumb">
+          <Link href="/">홈</Link>
+          <span className={styles.crumbsSep}>/</span>
+          <span>import</span>
+        </nav>
         <section className={styles.title}>
           <h1>원문 가져오기</h1>
           <p className={styles.titleLead}>
