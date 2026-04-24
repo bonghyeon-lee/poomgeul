@@ -1,0 +1,65 @@
+.header {
+  height: var(--header-h);
+  border-bottom: 1px solid var(--border);
+  background: rgba(250, 247, 242, 0.82);
+  backdrop-filter: saturate(1.2) blur(12px);
+  -webkit-backdrop-filter: saturate(1.2) blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.inner {
+  height: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  font-size: var(--fs-14);
+  color: var(--color-fg-muted);
+}
+
+.nav a {
+  color: var(--color-fg-muted);
+}
+
+.nav a:hover {
+  color: var(--color-brand-hover);
+}
+
+.me {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.userLabel {
+  color: var(--color-fg);
+  font-weight: 500;
+}
+
+.logoutForm {
+  display: inline-flex;
+}
+
+.logoutButton {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+}
+
+.logoutButton:hover {
+  color: var(--color-brand-hover);
+}
