@@ -58,3 +58,16 @@ export class DecideProposalBody {
   @MaxLength(500)
   note?: string;
 }
+
+/**
+ * ADR-0006 C4 — 댓글 본문. workflow-proposal.md의 ProposalComment 스레드에
+ * 추가. terminal 상태(merged/rejected/withdrawn/stale)에도 작성 가능 —
+ * 히스토리 논의 보존.
+ */
+export class CreateCommentBody {
+  @ApiProperty({ description: "댓글 본문. 1–2000자.", maxLength: 2000 })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
+  body!: string;
+}

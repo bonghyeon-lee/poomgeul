@@ -1,6 +1,9 @@
 export { AttributionBlock } from "./components/AttributionBlock";
 export type { AttributionBlockProps } from "./components/AttributionBlock";
 
+export { ProposalCommentThread } from "./components/ProposalCommentThread";
+export type { ProposalCommentThreadProps } from "./components/ProposalCommentThread";
+
 export { ProposeButton } from "./components/ProposeButton";
 export type { ProposeButtonProps } from "./components/ProposeButton";
 
@@ -13,6 +16,7 @@ export type { SegmentPairProps } from "./components/SegmentPair";
 export { findReaderBundleBySlug, listReaderSlugs, sampleReaderBundle } from "./mocks";
 export {
   loadIsAuthed,
+  loadProposalCommentsFromApi,
   loadProposalsFromApi,
   loadReaderBundleFromApi,
   loadTranslationList,
@@ -20,6 +24,7 @@ export {
 export type { TranslationListItem } from "./api";
 export type {
   Contributor,
+  ProposalCommentItem,
   ProposalStatus,
   ProposalSummary,
   ReaderBundle,

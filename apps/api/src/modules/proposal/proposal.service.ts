@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 
-import type { CreateProposalBody } from "./dto.js";
+import type { CreateCommentBody, CreateProposalBody } from "./dto.js";
 import {
   type ApproveProposalResult,
   type ListProposalsOptions,
@@ -201,6 +201,40 @@ export class ProposalService {
     }
     // 타입 좁히기: 위 분기가 true가 아니면 ApproveProposalResult다.
     return approveOutcome as ApproveProposalResult;
+  }
+
+  async createComment(
+    slug: string,
+    proposalId: string,
+    authorId: string,
+    body: CreateCommentBody,
+  ): Promise<ProposalComment> {
+    const translationId = await this.resolveTranslationId(slug);
+
+    const trimmed = body.body.trim();
+    if (trimmed.length === 0) {
+      throw new BadRequestException({
+        code: "validation_failed",
+        message: "body는 공백만 포함할 수 없다",
+      });
+    }
+
+    const proposal = await this.repo.findProposalForDecision(translationId, proposalId);
+    if (!proposal) {
+      throw new NotFoundException({
+        code: "not_found",
+        message: `proposal ${proposalId} not found in translation ${slug}`,
+      });
+    }
+    // terminal 상태여도 댓글은 허용. 히스토리/사후 논의 보존 (workflow-proposal.md §UI 경로).
+
+    return this.repo.createCommentWithContribution({
+      proposalId: proposal.proposalId,
+      authorId,
+      body: trimmed,
+      translationId,
+      segmentId: proposal.segmentId,
+    });
   }
 
   async withdraw(

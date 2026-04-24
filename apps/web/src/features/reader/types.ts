@@ -72,6 +72,17 @@ export type ProposalSummary = {
   createdAt: string;
 };
 
+export type ProposalCommentItem = {
+  commentId: string;
+  body: string;
+  createdAt: string;
+  author: {
+    userId: string;
+    displayName: string | null;
+    githubHandle: string | null;
+  };
+};
+
 export type ReaderBundle = {
   source: Source;
   segments: Segment[];

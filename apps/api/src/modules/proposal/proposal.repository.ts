@@ -126,6 +126,14 @@ export type RebaseConflict = {
   currentText: string;
 };
 
+export interface CreateCommentInput {
+  proposalId: string;
+  authorId: string;
+  body: string;
+  translationId: string;
+  segmentId: string;
+}
+
 @Injectable()
 export class ProposalRepository {
   constructor(@Inject(DB_TOKEN) private readonly db: Db) {}
@@ -350,6 +358,60 @@ export class ProposalRepository {
       status: "withdrawn",
       resolvedAt: updated.resolvedAt.toISOString(),
     };
+  }
+
+  /**
+   * 댓글 insert + review_comment Contribution을 한 트랜잭션으로.
+   * workflow-proposal.md의 이벤트 매핑 그대로. 작성자 displayName/githubHandle은
+   * 응답에 포함할 수 있도록 users에서 함께 반환.
+   */
+  async createCommentWithContribution(input: CreateCommentInput): Promise<ProposalComment> {
+    return this.db.transaction(async (tx) => {
+      const [inserted] = await tx
+        .insert(proposalComments)
+        .values({
+          proposalId: input.proposalId,
+          authorId: input.authorId,
+          body: input.body,
+        })
+        .returning({
+          commentId: proposalComments.commentId,
+          createdAt: proposalComments.createdAt,
+        });
+      if (!inserted) throw new Error("comment insert returned no row");
+
+      await tx.insert(contributions).values({
+        userId: input.authorId,
+        eventType: "review_comment",
+        entityRef: {
+          translationId: input.translationId,
+          segmentId: input.segmentId,
+          proposalId: input.proposalId,
+          commentId: inserted.commentId,
+        },
+      });
+
+      const authorRows = await tx
+        .select({
+          displayName: users.displayName,
+          githubHandle: users.githubHandle,
+        })
+        .from(users)
+        .where(eq(users.id, input.authorId))
+        .limit(1);
+      const author = authorRows[0];
+
+      return {
+        commentId: inserted.commentId,
+        body: input.body,
+        createdAt: inserted.createdAt.toISOString(),
+        author: {
+          userId: input.authorId,
+          displayName: author?.displayName ?? null,
+          githubHandle: author?.githubHandle ?? null,
+        },
+      };
+    });
   }
 
   /**
