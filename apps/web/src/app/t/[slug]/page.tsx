@@ -4,9 +4,10 @@ import Link from "next/link";
 import { Chip, LicenseBadge } from "@/components/ui";
 import {
   AttributionBlock,
+  DecideButtons,
   findReaderBundleBySlug,
   listReaderSlugs,
-  loadIsAuthed,
+  loadMe,
   loadProposalCommentsFromApi,
   loadProposalsFromApi,
   loadReaderBundleFromApi,
@@ -16,6 +17,7 @@ import {
   ReprocessButton,
   RetryFailedButton,
   SegmentPair,
+  WithdrawButton,
 } from "@/features/reader";
 
 import styles from "./page.module.css";
@@ -63,10 +65,10 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
   // Reader bundle과 Proposal 목록을 병렬 fetch (ADR-0006: 번들에 proposals를 끼우지 않고
   // 별도 엔드포인트에서 lazy fetch). API가 404 등으로 실패하면 loadProposalsFromApi는
   // 빈 배열을 돌려줘, mock bundle이 자체 보유한 샘플 proposals로 자연 폴백된다.
-  const [bundle, apiProposals, isAuthed] = await Promise.all([
+  const [bundle, apiProposals, me] = await Promise.all([
     resolveBundle(slug),
     loadProposalsFromApi(slug),
-    loadIsAuthed(),
+    loadMe(),
   ]);
   if (!bundle) {
     return <PendingSegmentsView slug={slug} />;
@@ -78,6 +80,8 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
 
   const { source, segments, translation, translationSegments, contributors } = bundle;
   const proposals = apiProposals.length > 0 ? apiProposals : bundle.proposals;
+  const isAuthed = me !== null;
+  const isLead = me !== null && me.id === translation.leadId;
 
   const tsByKey = new Map<string, (typeof translationSegments)[number]>();
   for (const ts of translationSegments) {
@@ -246,6 +250,10 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
             <div>
               {proposals.map((p) => {
                 const threadComments = commentsByProposalId.get(p.proposalId);
+                // decide/withdraw는 open일 때만 의미가 있다. terminal 제안에는
+                // 목록 행만 보여 주고 액션 버튼은 숨긴다.
+                const isOpen = p.status === "open";
+                const isProposer = me !== null && p.proposerId === me.id;
                 return (
                   <div key={p.proposalId}>
                     <div className={styles.proposalRow}>
@@ -258,6 +266,12 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
                       </a>
                       <Chip status={p.status}>{p.status}</Chip>
                       <span className={styles.proposalWho}>{p.proposerDisplayName}</span>
+                      {isOpen && isLead ? (
+                        <DecideButtons slug={slug} proposalId={p.proposalId} />
+                      ) : null}
+                      {isOpen && isProposer && !isLead ? (
+                        <WithdrawButton slug={slug} proposalId={p.proposalId} />
+                      ) : null}
                     </div>
                     {threadComments ? (
                       <ProposalCommentThread

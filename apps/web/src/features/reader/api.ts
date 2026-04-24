@@ -71,6 +71,13 @@ function apiBase(): string {
   return process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
 }
 
+export type ReaderMe = {
+  id: string;
+  email: string;
+  displayName: string | null;
+  githubHandle: string | null;
+};
+
 /**
  * 서버 컴포넌트에서 로그인 여부를 확인. AppHeader도 같은 조회를 하지만 page는
  * 그 결과를 받을 수 없어 이 헬퍼로 한 번 더 호출한다. 실패 시 미인증 취급.
@@ -90,6 +97,26 @@ export async function loadIsAuthed(): Promise<boolean> {
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+/**
+ * loadIsAuthed의 확장: 세션이 유효하면 me 객체까지 돌려주어 리드 여부·본인
+ * 여부를 Reader page에서 비교할 수 있게 한다. 미인증이면 null.
+ */
+export async function loadMe(): Promise<ReaderMe | null> {
+  const { headers } = await import("next/headers");
+  const cookie = (await headers()).get("cookie") ?? "";
+  if (!cookie) return null;
+  try {
+    const res = await fetch(`${apiBase()}/api/auth/me`, {
+      headers: { cookie },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as ReaderMe;
+  } catch {
+    return null;
   }
 }
 
@@ -115,6 +142,7 @@ export async function loadProposalsFromApi(slug: string): Promise<ProposalSummar
   type ApiItem = {
     proposalId: string;
     segmentId: string;
+    proposerId: string;
     proposerDisplayName: string | null;
     proposerGithubHandle: string | null;
     status: ProposalSummary["status"];
@@ -130,6 +158,7 @@ export async function loadProposalsFromApi(slug: string): Promise<ProposalSummar
   return items.map((p) => ({
     proposalId: p.proposalId,
     segmentId: p.segmentId,
+    proposerId: p.proposerId,
     proposerDisplayName: p.proposerDisplayName ?? p.proposerGithubHandle ?? "(이름 없음)",
     status: p.status,
     createdAt: p.createdAt,

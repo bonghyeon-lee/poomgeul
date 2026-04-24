@@ -205,6 +205,7 @@ const SAMPLE: ReaderBundle = {
     {
       proposalId: "prop-1042",
       segmentId: "seg-006",
+      proposerId: "user-suji",
       proposerDisplayName: "박수지",
       status: "open",
       createdAt: "2026-04-22T14:02:00Z",
@@ -212,6 +213,7 @@ const SAMPLE: ReaderBundle = {
     {
       proposalId: "prop-1041",
       segmentId: "seg-002",
+      proposerId: "user-suji",
       proposerDisplayName: "박수지",
       status: "merged",
       createdAt: "2026-04-20T08:10:00Z",
@@ -219,6 +221,7 @@ const SAMPLE: ReaderBundle = {
     {
       proposalId: "prop-1040",
       segmentId: "seg-003",
+      proposerId: "user-dohyun",
       proposerDisplayName: "이도현",
       status: "rejected",
       createdAt: "2026-04-19T11:45:00Z",
