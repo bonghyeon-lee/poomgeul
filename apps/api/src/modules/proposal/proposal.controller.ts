@@ -15,6 +15,7 @@ import {
   ApiBody,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -27,13 +28,18 @@ import type { User } from "@poomgeul/db";
 
 import { CurrentUser } from "../auth/current-user.decorator.js";
 import { SessionGuard } from "../auth/session.guard.js";
-import { CreateProposalBody } from "./dto.js";
+import { CreateProposalBody, DecideProposalBody } from "./dto.js";
 import {
   type ProposalComment,
   type ProposalDetail,
   type ProposalListItem,
+  type WithdrawProposalResult,
 } from "./proposal.repository.js";
-import { type CreateProposalResult, ProposalService } from "./proposal.service.js";
+import {
+  type CreateProposalResult,
+  type DecideResult,
+  ProposalService,
+} from "./proposal.service.js";
 
 type StatusParam = "all" | "open" | "merged" | "rejected" | "withdrawn" | "stale";
 
@@ -131,6 +137,68 @@ export class ProposalController {
     @CurrentUser() user: User,
   ): Promise<CreateProposalResult> {
     return this.service.create(slug, user.id, body);
+  }
+
+  @Post(":proposalId/decide")
+  @UseGuards(SessionGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Lead-only approve or reject a proposal (M0 §6 / ADR-0006 C3)",
+    description:
+      "Unified endpoint for the two terminal lead actions, body.action decides. " +
+      "approve: runs the ADR-0003 merge transaction — translation_segments.text " +
+      "updated, version incremented, translation_revisions inserted with a " +
+      "before/after snapshot, proposals.status='merged', contribution " +
+      "(proposal_merge) recorded. reject: just flips status='rejected'. " +
+      "Only the translation lead may decide.",
+  })
+  @ApiParam({ name: "slug", type: String })
+  @ApiParam({ name: "proposalId", type: String })
+  @ApiBody({ type: DecideProposalBody })
+  @ApiOkResponse({ description: "Decision result (merged with segment snapshot, or rejected)." })
+  @ApiBadRequestResponse({
+    description: "validation_failed — body.action not in [approve,reject].",
+  })
+  @ApiUnauthorizedResponse({ description: "No session cookie." })
+  @ApiForbiddenResponse({ description: "Requester is not the translation lead." })
+  @ApiNotFoundResponse({ description: "translation or proposal not found." })
+  @ApiConflictResponse({
+    description:
+      "not_open (already merged/rejected/withdrawn/stale) or rebase_required " +
+      "(segment moved since the proposal was drafted).",
+  })
+  async decide(
+    @Param("slug") slug: string,
+    @Param("proposalId") proposalId: string,
+    @Body() body: DecideProposalBody,
+    @CurrentUser() user: User,
+  ): Promise<DecideResult> {
+    return this.service.decide(slug, proposalId, user.id, body.action);
+  }
+
+  @Post(":proposalId/withdraw")
+  @UseGuards(SessionGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Proposer withdraws their own open proposal (M0 §6 / ADR-0006 C3)",
+    description:
+      "Only the proposer can withdraw, and only while the proposal is open. " +
+      "Sets status='withdrawn', resolvedAt=now, resolvedBy=null (the Git author/ " +
+      "committer split doesn't apply to self-withdraw). No Contribution event.",
+  })
+  @ApiParam({ name: "slug", type: String })
+  @ApiParam({ name: "proposalId", type: String })
+  @ApiOkResponse({ description: "Withdrawal result." })
+  @ApiUnauthorizedResponse({ description: "No session cookie." })
+  @ApiForbiddenResponse({ description: "Requester is not the proposer." })
+  @ApiNotFoundResponse({ description: "translation or proposal not found." })
+  @ApiConflictResponse({ description: "not_open — proposal already terminal." })
+  async withdraw(
+    @Param("slug") slug: string,
+    @Param("proposalId") proposalId: string,
+    @CurrentUser() user: User,
+  ): Promise<WithdrawProposalResult> {
+    return this.service.withdraw(slug, proposalId, user.id);
   }
 
   @Get(":proposalId/comments")
