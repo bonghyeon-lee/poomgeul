@@ -36,6 +36,7 @@ type State =
   | { phase: "idle" }
   | { phase: "running"; startedAt: number }
   | { phase: "done"; result: ReprocessSuccess; durationMs: number }
+  | { phase: "auth-required" }
   | { phase: "error"; message: string };
 
 export function ReprocessButton({ slug }: { slug: string }) {
@@ -79,6 +80,10 @@ export function ReprocessButton({ slug }: { slug: string }) {
       return;
     }
 
+    if (res.status === 401) {
+      setState({ phase: "auth-required" });
+      return;
+    }
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       setState({
@@ -114,10 +119,21 @@ export function ReprocessButton({ slug }: { slug: string }) {
         <DoneView result={state.result} durationMs={state.durationMs} />
       ) : null}
 
+      {state.phase === "auth-required" ? <AuthRequiredView /> : null}
+
       {state.phase === "error" ? (
         <p className={styles.errorMsg}>재처리 실패: {state.message}</p>
       ) : null}
     </div>
+  );
+}
+
+function AuthRequiredView() {
+  return (
+    <p className={styles.errorMsg} role="status" aria-live="polite">
+      재처리는 로그인한 사용자만 수행할 수 있습니다.{" "}
+      <a href="/api/auth/github">GitHub으로 로그인</a> 후 다시 시도해 주세요.
+    </p>
   );
 }
 

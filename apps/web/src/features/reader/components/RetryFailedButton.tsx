@@ -31,6 +31,7 @@ type State =
   | { phase: "running"; startedAt: number }
   | { phase: "done"; result: RetrySuccess; durationMs: number }
   | { phase: "done-nothing" }
+  | { phase: "auth-required" }
   | { phase: "error"; message: string };
 
 export function RetryFailedButton({ slug, failedCount }: { slug: string; failedCount: number }) {
@@ -73,6 +74,10 @@ export function RetryFailedButton({ slug, failedCount }: { slug: string; failedC
       return;
     }
 
+    if (res.status === 401) {
+      setState({ phase: "auth-required" });
+      return;
+    }
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       setState({
@@ -118,6 +123,13 @@ export function RetryFailedButton({ slug, failedCount }: { slug: string; failedC
       {state.phase === "done-nothing" ? (
         <p className={styles.stageDetail}>
           번역이 실패한 세그먼트가 없어 재시도할 대상이 없습니다.
+        </p>
+      ) : null}
+
+      {state.phase === "auth-required" ? (
+        <p className={styles.errorMsg} role="status" aria-live="polite">
+          실패분 재시도는 로그인한 사용자만 수행할 수 있습니다.{" "}
+          <a href="/api/auth/github">GitHub으로 로그인</a> 후 다시 시도해 주세요.
         </p>
       ) : null}
 
