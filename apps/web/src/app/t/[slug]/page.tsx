@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { Chip, LicenseBadge } from "@/components/ui";
 import {
@@ -7,6 +8,8 @@ import {
   BlocklistManager,
   BlockProposerButton,
   DecideButtons,
+  EditModeProvider,
+  EditModeToggle,
   findReaderBundleBySlug,
   listReaderSlugs,
   loadBlocklistFromApi,
@@ -19,6 +22,7 @@ import {
   ProposeButton,
   ReprocessButton,
   RetryFailedButton,
+  SegmentEditor,
   SegmentPair,
   WithdrawButton,
 } from "@/features/reader";
@@ -120,6 +124,12 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
 
   const bodySegments = segments.filter((s) => s.kind !== "reference");
   const referenceSegments = segments.filter((s) => s.kind === "reference");
+  const bodySegmentOrders = bodySegments.map((s) => s.order);
+
+  // 편집 모드는 리드에게만. Provider가 없으면 SegmentEditor/EditModeToggle은
+  // 렌더 자체가 스킵되도록 설계돼 있어 하위 트리를 일관되게 유지한다.
+  const wrapEditMode = (node: ReactNode): ReactNode =>
+    isLead ? <EditModeProvider segmentOrders={bodySegmentOrders}>{node}</EditModeProvider> : node;
 
   // 번역 진행도 계산: reference 제외한 세그먼트 중 aiDraftText가 실제로 채워진 개수.
   const translatable = segments.filter((s) => s.kind !== "reference");
@@ -197,37 +207,48 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
           </div>
         </section>
 
-        <section>
-          <div className={styles.sectionHeader}>
-            <h2>본문</h2>
-            <span className={styles.sectionHeaderHint}>
-              원문 · 번역 병렬 · 세그먼트 {bodySegments.length}개
-            </span>
-          </div>
-          <div className={styles.bodyColumn}>
-            {bodySegments.map((seg) => {
-              const ts = tsByKey.get(seg.segmentId);
-              if (!ts) return null;
-              const proposal = openProposalBySegment.get(seg.segmentId);
-              return (
-                <div key={seg.segmentId}>
-                  <SegmentPair
-                    segment={seg}
-                    translation={ts}
-                    openProposalStatus={proposal ? proposal.status : null}
-                  />
-                  <ProposeButton
-                    slug={slug}
-                    segmentId={seg.segmentId}
-                    baseSegmentVersion={ts.version}
-                    initialText={ts.text}
-                    isAuthed={isAuthed}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </section>
+        {wrapEditMode(
+          <section>
+            <div className={styles.sectionHeader}>
+              <h2>본문</h2>
+              <span className={styles.sectionHeaderHint}>
+                원문 · 번역 병렬 · 세그먼트 {bodySegments.length}개
+              </span>
+              {isLead ? <EditModeToggle /> : null}
+            </div>
+            <div className={styles.bodyColumn}>
+              {bodySegments.map((seg) => {
+                const ts = tsByKey.get(seg.segmentId);
+                if (!ts) return null;
+                const proposal = openProposalBySegment.get(seg.segmentId);
+                return (
+                  <div key={seg.segmentId}>
+                    <SegmentPair
+                      segment={seg}
+                      translation={ts}
+                      openProposalStatus={proposal ? proposal.status : null}
+                    />
+                    <ProposeButton
+                      slug={slug}
+                      segmentId={seg.segmentId}
+                      baseSegmentVersion={ts.version}
+                      initialText={ts.text}
+                      isAuthed={isAuthed}
+                    />
+                    {isLead ? (
+                      <SegmentEditor
+                        slug={slug}
+                        segmentId={seg.segmentId}
+                        currentText={ts.text}
+                        currentVersion={ts.version}
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </section>,
+        )}
 
         {referenceSegments.length > 0 ? (
           <section>
