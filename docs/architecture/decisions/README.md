@@ -43,3 +43,4 @@
 | [0005](0005-github-oauth-session.md) | GitHub OAuth + DB 세션 | Accepted |
 | [0006](0006-proposal-crud-api.md) | Proposal CRUD API — 경로·페이로드·PR 분해 전략 | Accepted |
 | [0007](0007-proposal-blocklist.md) | Proposal Blocklist — 번역본 단위 사용자 차단 모델 | Accepted |
+| [0008](0008-segment-direct-edit.md) | Segment 직접 편집 — HTTP 계약·이중 기록 모델 | Accepted |
