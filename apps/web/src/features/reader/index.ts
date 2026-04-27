@@ -10,6 +10,14 @@ export type { BlockProposerButtonProps } from "./components/BlockProposerButton"
 export { DecideButtons } from "./components/DecideButtons";
 export type { DecideButtonsProps } from "./components/DecideButtons";
 
+export { EditModeProvider, useOptionalEditMode } from "./components/EditModeProvider";
+export type { EditModeProviderProps } from "./components/EditModeProvider";
+
+export { EditModeToggle } from "./components/EditModeToggle";
+
+export { SegmentEditor } from "./components/SegmentEditor";
+export type { SegmentEditorProps } from "./components/SegmentEditor";
+
 export { ProposalCommentThread } from "./components/ProposalCommentThread";
 export type { ProposalCommentThreadProps } from "./components/ProposalCommentThread";
 
