@@ -1,4 +1,8 @@
-import { LicenseBadge } from "@/components/ui";
+"use client";
+
+import { useState } from "react";
+
+import { Button, LicenseBadge } from "@/components/ui";
 
 import type { Contributor, Source, Translation } from "../types";
 
@@ -29,6 +33,19 @@ function formatCitation(source: Source, translation: Translation): string {
 export function AttributionBlock({ source, translation, contributors }: AttributionBlockProps) {
   const citation = formatCitation(source, translation);
   const shareAlike = translation.license === "CC-BY-SA";
+  // "복사됨" 라벨을 짧게 띄웠다 사라지는 가벼운 피드백. clipboard write가 실패한
+  // 경우(권한·http 환경)에는 textarea로 fallback해 select 상태만 보장한다.
+  const [copied, setCopied] = useState<"idle" | "ok" | "err">("idle");
+
+  async function copyCitation() {
+    try {
+      await navigator.clipboard.writeText(citation);
+      setCopied("ok");
+    } catch {
+      setCopied("err");
+    }
+    window.setTimeout(() => setCopied("idle"), 1800);
+  }
 
   return (
     <section className={styles.block} aria-label="출처와 기여자">
@@ -82,7 +99,12 @@ export function AttributionBlock({ source, translation, contributors }: Attribut
         </ul>
       </div>
       <div className={styles.copyRow}>
-        <span className={styles.label}>인용 문자열</span>
+        <div className={styles.copyHeader}>
+          <span className={styles.label}>인용 문자열</span>
+          <Button size="sm" variant="secondary" onClick={copyCitation}>
+            {copied === "ok" ? "복사됨" : copied === "err" ? "복사 실패" : "복사"}
+          </Button>
+        </div>
         <p className={styles.copyQuote}>{citation}</p>
       </div>
     </section>
