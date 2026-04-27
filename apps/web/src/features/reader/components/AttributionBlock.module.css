@@ -75,6 +75,13 @@
   padding-top: var(--space-4);
 }
 
+.copyHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 .copyQuote {
   font-family: var(--font-mono);
   font-size: var(--fs-12);

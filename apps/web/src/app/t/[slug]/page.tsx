@@ -31,6 +31,10 @@ import styles from "./page.module.css";
 
 type RouteParams = { slug: string };
 
+// 공개 사이트 URL. canonical/og:url 등 절대 URL이 필요한 곳의 기준점.
+// dev/preview는 NEXT_PUBLIC_SITE_URL로 오버라이드. M0 §8 URL 규약(poomgeul.org).
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://poomgeul.org";
+
 // mock 슬러그는 SSG로, Import로 새로 만들어진 슬러그는 런타임에 렌더한다.
 export const dynamicParams = true;
 
@@ -60,9 +64,11 @@ export async function generateMetadata({
 
   const title = `${bundle.source.title} — 한국어 번역 (poomgeul)`;
   const description = `${bundle.source.author.join(", ")}의 ${bundle.source.sourceVersion} 판본을 한국어로 옮깁니다. 리드: ${bundle.translation.leadDisplayName}.`;
+  const canonical = `${SITE_URL}/t/${slug}`;
   return {
     title,
     description,
+    alternates: { canonical },
     robots: bundle.translation.status === "draft" ? { index: false } : undefined,
   };
 }
@@ -141,8 +147,42 @@ export default async function ReaderPage({ params }: { params: Promise<RoutePara
   const progressPct =
     translatable.length > 0 ? Math.round((translatedOk / translatable.length) * 100) : 100;
 
+  // M0 §8: ScholarlyArticle + TranslationOfWork 구조화 데이터. draft는 색인 자체가
+  // robots noindex로 막혀 있어 JSON-LD를 함께 빼 검색엔진에 흔적을 남기지 않는다.
+  const canonicalUrl = `${SITE_URL}/t/${slug}`;
+  const jsonLd =
+    translation.status === "draft"
+      ? null
+      : {
+          "@context": "https://schema.org",
+          "@type": "ScholarlyArticle",
+          headline: source.title,
+          inLanguage: translation.targetLang,
+          url: canonicalUrl,
+          author: source.author.map((name) => ({ "@type": "Person", name })),
+          translator: { "@type": "Person", name: translation.leadDisplayName },
+          isBasedOn: source.attributionSource,
+          license:
+            translation.license === "CC-BY-SA"
+              ? "https://creativecommons.org/licenses/by-sa/4.0/"
+              : "https://creativecommons.org/licenses/by/4.0/",
+          translationOfWork: {
+            "@type": "ScholarlyArticle",
+            headline: source.title,
+            author: source.author.map((name) => ({ "@type": "Person", name })),
+            inLanguage: source.originalLang,
+            url: source.attributionSource,
+          },
+        };
+
   return (
     <div className={styles.shell}>
+      {jsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      ) : null}
       <main className={styles.main}>
         <div className={styles.pageBar}>
           <nav className={styles.crumbs} aria-label="breadcrumb">
